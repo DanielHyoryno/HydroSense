@@ -18,7 +18,7 @@ It connects an ESP32 flow meter device to a backend API and mobile app, supports
 ## Repository Structure
 
 ```text
-Projek Skripsi/
+.
 |- backend/   # Node.js + Express API, auth, telemetry endpoints, DB
 |- mobile/    # Expo React Native app (Android/Web)
 |- iot/       # ESP32 firmware and IoT setup docs
