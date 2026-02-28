@@ -1,0 +1,32 @@
+require("dotenv").config();
+
+function toNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+const NODE_ENV = process.env.NODE_ENV || "development";
+const IS_PROD = NODE_ENV === "production";
+
+const config = {
+  nodeEnv: NODE_ENV,
+  isProd: IS_PROD,
+  port: toNumber(process.env.PORT, 8080),
+  db: {
+    host: process.env.DB_HOST || "localhost",
+    port: toNumber(process.env.DB_PORT, 5432),
+    user: process.env.DB_USER || "skripsi_user",
+    password: process.env.DB_PASSWORD || "skripsi_pass",
+    name: process.env.DB_NAME || "skripsi_db",
+  },
+  auth: {
+    jwtSecret: process.env.JWT_SECRET || "",
+    jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  },
+};
+
+if (config.isProd && !config.auth.jwtSecret) {
+  throw new Error("JWT_SECRET is required in production environment");
+}
+
+module.exports = config;
