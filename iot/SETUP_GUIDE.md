@@ -9,7 +9,7 @@ with the WaterMeter v3 firmware.
 
 ### Hardware
 - ESP32 DevKit V1 (or compatible ESP32 board)
-- YF-S201 water flow sensor
+- YF-B6 water flow sensor
 - I2C 20x4 LCD display (address 0x27)
 - Breadboard + jumper wires
 - Micro-USB cable for flashing
@@ -32,7 +32,7 @@ with the WaterMeter v3 firmware.
 
 Connect the components as follows:
 
-### YF-S201 Flow Sensor
+### YF-B6 Flow Sensor
 | Sensor Wire  | ESP32 Pin |
 |-------------|-----------|
 | Red (VCC)   | 5V (VIN)  |
@@ -241,7 +241,7 @@ In the mobile app:
 - If the sensor is idle, the ESP32 sends heartbeat records every 60 seconds
 
 ### No flow data showing
-- Make sure water is actually flowing through the YF-S201 sensor
+- Make sure water is actually flowing through the YF-B6 sensor
 - Check the wiring: signal wire on GPIO 34, VCC on 5V, GND on GND
 - The sensor needs water pressure to spin the turbine
 - Flow rate should appear on the LCD when water flows

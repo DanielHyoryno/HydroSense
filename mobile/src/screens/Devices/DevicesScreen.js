@@ -6,17 +6,18 @@ import {
   Easing,
   FlatList,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useFocusEffect } from "@react-navigation/native";
-import { useAuth } from "../context/AuthContext";
-import { createDeviceApi, deleteDeviceApi, listDevicesApi } from "../services/api";
+import { useAuth } from "../../context/AuthContext";
+import { createDeviceApi, deleteDeviceApi, listDevicesApi } from "../../services/api";
+import styles from "./styles";
 
 const AUTO_REFRESH_MS = 5000;
 
@@ -68,16 +69,21 @@ function DeviceCard({ item, onDelete }) {
       <Text style={styles.meta}>Firmware: {item.firmware_version || "-"}</Text>
       <Pressable
         style={styles.deleteButton}
-        onPress={() =>
-          Alert.alert(
-            "Delete Device",
-            "Are you sure you want to delete this device? All telemetry data will be lost.",
-            [
-              { text: "Cancel", style: "cancel" },
-              { text: "Delete", style: "destructive", onPress: () => onDelete(item.id) },
-            ]
-          )
-        }
+        onPress={(event) => {
+          event?.stopPropagation?.();
+          const confirmMessage = "Are you sure you want to delete this device? All telemetry data will be lost.";
+
+          if (Platform.OS === "web") {
+            const ok = typeof window !== "undefined" ? window.confirm(confirmMessage) : false;
+            if (ok) onDelete(item.id);
+            return;
+          }
+
+          Alert.alert("Delete Device", confirmMessage, [
+            { text: "Cancel", style: "cancel" },
+            { text: "Delete", style: "destructive", onPress: () => onDelete(item.id) },
+          ]);
+        }}
       >
         <Text style={styles.deleteButtonText}>Delete</Text>
       </Pressable>
@@ -313,252 +319,3 @@ export default function DevicesScreen({ navigation }) {
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: "#f4f8ff",
-    paddingTop: 56,
-    paddingHorizontal: 16,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#1a3047",
-  },
-  subtitle: {
-    color: "#4f6982",
-    marginTop: 2,
-  },
-  logoutButton: {
-    backgroundColor: "#eef4ff",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  scanButton: {
-    backgroundColor: "#0f62fe",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  scanText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-  logoutText: {
-    color: "#0f62fe",
-    fontWeight: "700",
-  },
-  createBox: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#dbe6f5",
-    padding: 14,
-    marginBottom: 10,
-  },
-  createTitle: {
-    fontWeight: "700",
-    color: "#1d3551",
-    marginBottom: 10,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d4dde7",
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    color: "#1a3047",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
-  },
-  primaryButton: {
-    backgroundColor: "#0f62fe",
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  primaryText: {
-    color: "#fff",
-    fontWeight: "700",
-  },
-  tokenBox: {
-    marginTop: 10,
-    borderRadius: 10,
-    padding: 10,
-    backgroundColor: "#fff6de",
-    borderWidth: 1,
-    borderColor: "#f1d17b",
-  },
-  tokenLabel: {
-    color: "#5a4212",
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  tokenValue: {
-    color: "#6f510a",
-    fontFamily: "monospace",
-    fontSize: 12,
-  },
-  copyTokenButton: {
-    marginTop: 10,
-    backgroundColor: "#f7e7b5",
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#e9cb6b",
-  },
-  copyTokenButtonText: {
-    color: "#5a4212",
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  showTokenButton: {
-    marginTop: 8,
-    backgroundColor: "#edf4ff",
-    borderWidth: 1,
-    borderColor: "#c8daf9",
-    borderRadius: 8,
-    paddingVertical: 9,
-    alignItems: "center",
-  },
-  showTokenButtonText: {
-    color: "#0f62fe",
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(13,23,36,0.35)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: 420,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#dbe6f5",
-    padding: 14,
-  },
-  modalTitle: {
-    color: "#1a3047",
-    fontWeight: "700",
-    fontSize: 18,
-  },
-  modalSubtitle: {
-    color: "#4f6982",
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 8,
-    marginTop: 10,
-  },
-  closeDialogButton: {
-    backgroundColor: "#eef4ff",
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  closeDialogButtonText: {
-    color: "#0f62fe",
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  listContent: {
-    paddingBottom: 28,
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#dbe6f5",
-    padding: 14,
-    marginBottom: 10,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  deviceName: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#17324d",
-  },
-  statusBadge: {
-    fontWeight: "700",
-    fontSize: 11,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    overflow: "hidden",
-  },
-  statusWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#0a6f2f",
-  },
-  statusOnline: {
-    color: "#0a6f2f",
-    backgroundColor: "#dcfbe8",
-  },
-  statusOffline: {
-    color: "#7a2323",
-    backgroundColor: "#ffe3e3",
-  },
-  meta: {
-    color: "#4d6480",
-    marginTop: 1,
-  },
-  deleteButton: {
-    marginTop: 10,
-    alignSelf: "flex-end",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: "#ffe3e3",
-  },
-  deleteButtonText: {
-    color: "#a61d1d",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  error: {
-    color: "#a61d1d",
-    marginBottom: 8,
-  },
-  empty: {
-    marginTop: 18,
-    textAlign: "center",
-    color: "#4d6480",
-  },
-  loading: {
-    marginTop: 24,
-  },
-});

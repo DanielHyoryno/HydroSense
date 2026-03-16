@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * IoT Simulator — pretends to be an ESP32 + YF-S201 sensor
+ * IoT Simulator — pretends to be an ESP32 + YF-B6 sensor
  *
  * Posts realistic telemetry batches to the backend every SEND_INTERVAL seconds.
  * Useful for testing the full app flow without the physical device.

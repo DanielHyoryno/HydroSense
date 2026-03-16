@@ -71,6 +71,11 @@ Open on:
 - Prepare deployment hardening (security and ops)
 - Keep demo flow simple for thesis presentation
 
+## Deployment (Free Tier)
+
+- Recommended stack: Render (backend) + Supabase (Postgres)
+- Deployment guide: `DEPLOY_RENDER_SUPABASE.md`
+
 ## Notes
 
 If you are cloning this project for local testing, read and update env values first, then run backend before mobile.

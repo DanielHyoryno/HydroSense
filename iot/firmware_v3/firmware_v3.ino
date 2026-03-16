@@ -2,7 +2,7 @@
   WaterMeter v3 - ESP32 Firmware
 
   Codenya Buat apa aja:
-  - Reads a YF-S201 flow sensor on GPIO 34 using interrupt pulses (FALLING edge)
+  - Reads a YF-B6 flow sensor on GPIO 34 using interrupt pulses (FALLING edge)
   - Shows live flow, cumulative volume, and connection state on 20x4 I2C LCD (0x27)
   - Provides BLE provisioning for WiFi SSID/password, server URL, and API token
   - Stores provisioning values in NVS (Preferences) so they persist across reboots
@@ -30,12 +30,16 @@
 #include <Preferences.h>
 #include <LiquidCrystal_I2C.h>
 #include <time.h>
+#include <esp_sleep.h>
 
 // =========================
 // Hardware Configuration
 // =========================
 static const int FLOW_SENSOR_PIN = 34;
 static const int PULSES_PER_LITER = 572;
+static const int BATTERY_ADC_PIN = 35;
+static const float BATTERY_VOLTAGE_DIVIDER_RATIO = 2.0f;
+// GPIO34 has no internal pull-up on ESP32, use external pull-up resistor on flow signal.
 static const uint8_t LCD_ADDR = 0x27;
 static const uint8_t LCD_COLS = 20;
 static const uint8_t LCD_ROWS = 4;
@@ -59,6 +63,7 @@ static const unsigned long FLOW_SAMPLE_INTERVAL_MS = 1000UL;
 static const unsigned long SEND_INTERVAL_MS = 30000UL;         // every 30s
 static const unsigned long WIFI_RETRY_INTERVAL_MS = 10000UL;   // retry every 10s
 static const unsigned long HEARTBEAT_INTERVAL_SEC = 60UL;      // at least one zero record every 60s
+static const unsigned long IDLE_SLEEP_TIMEOUT_MS = 20000UL;    // sleep after 20s without pulse
 static const int MAX_RECORDS = 400;
 static const int SEND_CHUNK_SIZE = 60;
 
@@ -96,11 +101,13 @@ bool bleAdvertisingActive = false;
 // Flow and Telemetry State
 // =========================
 volatile uint32_t pulseCount = 0;
+volatile bool pulseActivitySinceLastCheck = false;
 float currentFlowRateLpm = 0.0f;
 float cumulativeVolumeL = 0.0f;
 unsigned long lastFlowSampleMs = 0;
 unsigned long lastSendAttemptMs = 0;
 unsigned long lastWifiAttemptMs = 0;
+unsigned long lastPulseActivityMs = 0;
 time_t lastHeartbeatEpoch = 0;
 
 enum ServerSendStatus {
@@ -116,6 +123,9 @@ struct TelemetryRecord {
   float flow_rate_lpm;
   float volume_delta_l;
   float cumulative_volume_l;
+  uint32_t pulse_count;
+  float battery_voltage;           // < 0 means unknown/unavailable
+  int rssi_dbm;                    // 127 means unknown/unavailable
 };
 
 TelemetryRecord records[MAX_RECORDS];
@@ -265,7 +275,37 @@ void startNtpSync() {
   configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, "pool.ntp.org", "time.nist.gov", "time.google.com");
 }
 
-void addRecord(const char *measuredAt, float flowRateLpm, float volumeDeltaL, float cumulativeL) {
+float readBatteryVoltage() {
+  uint16_t rawMv = analogReadMilliVolts(BATTERY_ADC_PIN);
+  if (rawMv == 0) {
+    return -1.0f;
+  }
+
+  float measuredV = static_cast<float>(rawMv) / 1000.0f;
+  float batteryV = measuredV * BATTERY_VOLTAGE_DIVIDER_RATIO;
+
+  if (batteryV < 2.0f || batteryV > 6.0f) {
+    return -1.0f;
+  }
+
+  return batteryV;
+}
+
+int readRssiDbm() {
+  if (WiFi.status() != WL_CONNECTED) {
+    return 127;
+  }
+
+  return WiFi.RSSI();
+}
+
+void addRecord(const char *measuredAt,
+               float flowRateLpm,
+               float volumeDeltaL,
+               float cumulativeL,
+               uint32_t pulseCountValue,
+               float batteryVoltage,
+               int rssiDbm) {
   if (recordCount >= MAX_RECORDS) {
     // Drop oldest record when full to keep latest data
     for (int i = 1; i < MAX_RECORDS; ++i) {
@@ -279,6 +319,9 @@ void addRecord(const char *measuredAt, float flowRateLpm, float volumeDeltaL, fl
   records[recordCount].flow_rate_lpm = flowRateLpm;
   records[recordCount].volume_delta_l = volumeDeltaL;
   records[recordCount].cumulative_volume_l = cumulativeL;
+  records[recordCount].pulse_count = pulseCountValue;
+  records[recordCount].battery_voltage = batteryVoltage;
+  records[recordCount].rssi_dbm = rssiDbm;
   recordCount++;
 }
 
@@ -315,6 +358,13 @@ bool postRecordChunk(int chunkCount) {
     obj["flow_rate_lpm"] = records[i].flow_rate_lpm;
     obj["volume_delta_l"] = records[i].volume_delta_l;
     obj["cumulative_volume_l"] = records[i].cumulative_volume_l;
+    obj["pulse_count"] = records[i].pulse_count;
+    if (records[i].battery_voltage >= 0.0f) {
+      obj["battery_voltage"] = records[i].battery_voltage;
+    }
+    if (records[i].rssi_dbm != 127) {
+      obj["rssi_dbm"] = records[i].rssi_dbm;
+    }
   }
 
   String payload;
@@ -361,6 +411,42 @@ void sendTelemetryBatches() {
     serverStatus = SERVER_OK;
     delay(40);
   }
+}
+
+void enterDeepSleepFromIdle() {
+  // Keep BLE provisioning available when config is not complete.
+  if (!hasProvisioningConfig()) {
+    return;
+  }
+
+  // Device just had pulse activity.
+  if (millis() - lastPulseActivityMs < IDLE_SLEEP_TIMEOUT_MS) {
+    return;
+  }
+
+  // Flush pending telemetry first so data is not lost across deep sleep reset.
+  if (recordCount > 0) {
+    sendTelemetryBatches();
+    if (recordCount > 0) {
+      return;
+    }
+  }
+
+  // Wake source uses FLOW_SENSOR_PIN low level. If line is already low,
+  // entering sleep can wake immediately.
+  if (digitalRead(FLOW_SENSOR_PIN) == LOW) {
+    return;
+  }
+
+  printLcdLine(0, "WaterMeter v3 Sleep");
+  printLcdLine(1, "Idle >20s");
+  printLcdLine(2, "Wake: flow pulse");
+  printLcdLine(3, "Preparing...");
+  delay(120);
+
+  uint64_t wakeMask = (1ULL << FLOW_SENSOR_PIN);
+  esp_sleep_enable_ext1_wakeup(wakeMask, ESP_EXT1_WAKEUP_ALL_LOW);
+  esp_deep_sleep_start();
 }
 
 // =========================
@@ -460,6 +546,7 @@ void setupBleProvisioning() {
 // =========================
 void IRAM_ATTR pulseCounter() {
   pulseCount++;
+  pulseActivitySinceLastCheck = true;
 }
 
 void sampleFlowAndBuildRecords() {
@@ -470,14 +557,23 @@ void sampleFlowAndBuildRecords() {
   lastFlowSampleMs = nowMs;
 
   uint32_t pulses;
+  bool hadPulseActivity;
   noInterrupts();
   pulses = pulseCount;
   pulseCount = 0;
+  hadPulseActivity = pulseActivitySinceLastCheck;
+  pulseActivitySinceLastCheck = false;
   interrupts();
+
+  if (hadPulseActivity || pulses > 0) {
+    lastPulseActivityMs = nowMs;
+  }
 
   float volumeDeltaL = static_cast<float>(pulses) / static_cast<float>(PULSES_PER_LITER);
   currentFlowRateLpm = volumeDeltaL * 60.0f;
   cumulativeVolumeL += volumeDeltaL;
+  float batteryVoltage = readBatteryVoltage();
+  int rssiDbm = readRssiDbm();
 
   if (isTimeSynced()) {
     time_t nowEpoch = time(nullptr);
@@ -485,11 +581,11 @@ void sampleFlowAndBuildRecords() {
     toIso8601Utc(nowEpoch, measuredAt, sizeof(measuredAt));
 
     if (pulses > 0) {
-      addRecord(measuredAt, currentFlowRateLpm, volumeDeltaL, cumulativeVolumeL);
+      addRecord(measuredAt, currentFlowRateLpm, volumeDeltaL, cumulativeVolumeL, pulses, batteryVoltage, rssiDbm);
       lastHeartbeatEpoch = nowEpoch;
     } else {
       if (lastHeartbeatEpoch == 0 || static_cast<unsigned long>(nowEpoch - lastHeartbeatEpoch) >= HEARTBEAT_INTERVAL_SEC) {
-        addRecord(measuredAt, 0.0f, 0.0f, cumulativeVolumeL);
+        addRecord(measuredAt, 0.0f, 0.0f, cumulativeVolumeL, 0, batteryVoltage, rssiDbm);
         lastHeartbeatEpoch = nowEpoch;
       }
     }
@@ -508,7 +604,8 @@ void setup() {
   printLcdLine(2, "Init BLE/NVS...");
   printLcdLine(3, "Please wait...");
 
-  pinMode(FLOW_SENSOR_PIN, INPUT_PULLUP);
+  pinMode(FLOW_SENSOR_PIN, INPUT);
+  pinMode(BATTERY_ADC_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN), pulseCounter, FALLING);
 
   loadConfigFromNvs();
@@ -527,6 +624,7 @@ void setup() {
   lastFlowSampleMs = millis();
   lastSendAttemptMs = millis();
   lastWifiAttemptMs = 0;
+  lastPulseActivityMs = millis();
 
   updateLcdStatus();
 }
@@ -549,6 +647,8 @@ void loop() {
     sendTelemetryBatches();
     updateLcdStatus();
   }
+
+  enterDeepSleepFromIdle();
 
   // Keep loop responsive.
   delay(20);

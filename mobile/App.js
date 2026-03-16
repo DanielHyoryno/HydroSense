@@ -1,20 +1,27 @@
 import "react-native-gesture-handler";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, Dimensions, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
-import LoginScreen from "./src/screens/LoginScreen";
-import RegisterScreen from "./src/screens/RegisterScreen";
-import DevicesScreen from "./src/screens/DevicesScreen";
-import DeviceDashboardScreen from "./src/screens/DeviceDashboardScreen";
-import DeviceEditScreen from "./src/screens/DeviceEditScreen";
-import UsageHistoryScreen from "./src/screens/UsageHistoryScreen";
-import UsageLimitsScreen from "./src/screens/UsageLimitsScreen";
-import BLEScanScreen from "./src/screens/BLEScanScreen";
+import LoginScreen from "./src/screens/Login/LoginScreen";
+import RegisterScreen from "./src/screens/Register/RegisterScreen";
+import DevicesScreen from "./src/screens/Devices/DevicesScreen";
+import DeviceDashboardScreen from "./src/screens/DeviceDashboard/DeviceDashboardScreen";
+import DeviceEditScreen from "./src/screens/DeviceEdit/DeviceEditScreen";
+import UsageHistoryScreen from "./src/screens/UsageHistory/UsageHistoryScreen";
+import UsageLimitsScreen from "./src/screens/UsageLimits/UsageLimitsScreen";
+import BLEScanScreen from "./src/screens/BLEScan/BLEScanScreen";
+import HomeScreen from "./src/screens/Home/HomeScreen";
+import ProfileScreen from "./src/screens/Profile/ProfileScreen";
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+const TAB_BAR_HEIGHT = 62;
 
 function StartGate({ onStart }) {
   const fade = useRef(new Animated.Value(0)).current;
@@ -215,12 +222,85 @@ function RootNavigator() {
     );
   }
 
+  function MainTabs() {
+    const isCompactViewport = Dimensions.get("window").width <= 520;
+
+    return (
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+          headerShown: false,
+          tabBarShowLabel: false,
+          tabBarStyle: {
+            position: "absolute",
+            left: 14,
+            right: 14,
+            bottom: 14,
+            height: TAB_BAR_HEIGHT,
+            borderRadius: 18,
+            borderTopWidth: 0,
+            backgroundColor: "#ffffff",
+            shadowColor: "#0d1c2f",
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.12,
+            shadowRadius: 14,
+            elevation: 8,
+            paddingTop: 0,
+            paddingBottom: 0,
+          },
+          tabBarItemStyle: {
+            height: TAB_BAR_HEIGHT,
+            justifyContent: "center",
+            alignItems: "center",
+            paddingTop: 0,
+            paddingBottom: 0,
+            margin: 0,
+          },
+          tabBarIconStyle: {
+            height: TAB_BAR_HEIGHT,
+            width: 32,
+            justifyContent: "center",
+            alignItems: "center",
+            marginTop: 0,
+            marginBottom: 0,
+          },
+          tabBarIcon: ({ focused }) => {
+            const iconMap = {
+              Home: "home-outline",
+              Devices: "water-outline",
+              BLEScan: "bluetooth-outline",
+              Profile: "person-outline",
+            };
+
+            const iconName = focused ? iconMap[route.name].replace("-outline", "") : iconMap[route.name];
+            const color = focused ? "#0f62fe" : "#67809a";
+
+            return (
+              <View
+                style={[
+                  styles.tabIconWrap,
+                  Platform.OS === "web" && isCompactViewport && styles.tabIconWrapWebCompact,
+                  Platform.OS !== "web" && styles.tabIconWrapNative,
+                ]}
+              >
+                <Ionicons name={iconName} size={22} color={color} />
+              </View>
+            );
+          },
+        })}
+      >
+        <Tab.Screen name="Home" component={HomeScreen} />
+        <Tab.Screen name="Devices" component={DevicesScreen} />
+        <Tab.Screen name="BLEScan" component={BLEScanScreen} />
+        <Tab.Screen name="Profile" component={ProfileScreen} />
+      </Tab.Navigator>
+    );
+  }
+
   return (
     <NavigationContainer>
       {isAuthenticated ? (
         <Stack.Navigator>
-          <Stack.Screen name="Devices" component={DevicesScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="BLEScan" component={BLEScanScreen} options={{ title: "BLE Provisioning" }} />
+          <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
           <Stack.Screen
             name="DeviceDashboard"
             component={DeviceDashboardScreen}
@@ -329,5 +409,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     lineHeight: 18,
+  },
+  tabIconWrap: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabIconWrapNative: {
+    transform: [{ translateY: -4 }],
+  },
+  tabIconWrapWebCompact: {
+    transform: [{ translateY: -4 }],
   },
 });

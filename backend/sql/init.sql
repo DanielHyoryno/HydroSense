@@ -58,6 +58,15 @@ CREATE TABLE IF NOT EXISTS measurements (
   UNIQUE (device_id, measured_at)
 );
 
+ALTER TABLE measurements
+  ADD COLUMN IF NOT EXISTS pulse_count INTEGER;
+
+ALTER TABLE measurements
+  ADD COLUMN IF NOT EXISTS battery_voltage NUMERIC(6,3);
+
+ALTER TABLE measurements
+  ADD COLUMN IF NOT EXISTS rssi_dbm INTEGER;
+
 CREATE INDEX IF NOT EXISTS idx_measurements_device_measured_at
   ON measurements(device_id, measured_at DESC);
 

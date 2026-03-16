@@ -5,6 +5,15 @@ function toNumber(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function toBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") {
+    return fallback;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+}
+
 const NODE_ENV = process.env.NODE_ENV || "development";
 const IS_PROD = NODE_ENV === "production";
 
@@ -12,6 +21,8 @@ const config = {
   nodeEnv: NODE_ENV,
   isProd: IS_PROD,
   port: toNumber(process.env.PORT, 8080),
+  databaseUrl: process.env.DATABASE_URL || "",
+  dbSsl: toBoolean(process.env.DB_SSL, IS_PROD),
   db: {
     host: process.env.DB_HOST || "localhost",
     port: toNumber(process.env.DB_PORT, 5432),
