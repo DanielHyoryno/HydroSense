@@ -91,6 +91,20 @@ function getDateKeysBetween(from, to) {
   return out;
 }
 
+function shiftDateISO(dateISO, deltaDays) {
+  const date = new Date(`${dateISO}T00:00:00`);
+  date.setDate(date.getDate() + deltaDays);
+  return toLocalDateISO(date);
+}
+
+function maxDateISO(a, b) {
+  return a > b ? a : b;
+}
+
+function minDateISO(a, b) {
+  return a < b ? a : b;
+}
+
 function OverallUsageChart({ series, rangePreset }) {
   if (!series.length) return <Text style={styles.emptyText}>No total usage trend yet.</Text>;
 
@@ -188,6 +202,32 @@ function UsageByDeviceChart({ items }) {
               <View style={[styles.chartFill, { width: `${Math.max(fillPct, item.usageLiters > 0 ? 6 : 0)}%` }]} />
             </View>
             <Text style={styles.chartValue}>{formatNumber(item.usageLiters, 3)} L</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+function UsageByCategoryChart({ items }) {
+  if (!items.length) return <Text style={styles.emptyText}>No category usage data yet.</Text>;
+
+  const maxValue = items.reduce((max, item) => Math.max(max, item.totalLiters), 0);
+  const chartMax = maxValue > 0 ? maxValue : 1;
+
+  return (
+    <View style={styles.chartWrap}>
+      {items.map((item) => {
+        const fillPct = Math.round((item.totalLiters / chartMax) * 100);
+        return (
+          <View key={item.categoryName} style={styles.chartRow}>
+            <Text numberOfLines={1} style={styles.chartLabelWide}>
+              {item.categoryName}
+            </Text>
+            <View style={styles.chartTrack}>
+              <View style={[styles.chartFillCategory, { width: `${Math.max(fillPct, item.totalLiters > 0 ? 6 : 0)}%` }]} />
+            </View>
+            <Text style={styles.chartValue}>{formatNumber(item.totalLiters, 3)} L</Text>
           </View>
         );
       })}
@@ -394,11 +434,44 @@ export default function HomeScreen({ navigation }) {
   const overallAverageLabel = rangePreset === "day" ? "Average / Hour" : "Average / Day";
   const dayChartWidth = useMemo(() => Math.floor(screenWidth - 88), [screenWidth]);
 
+  const pickerMinDate = useMemo(() => {
+    if (pickerTarget === "from") {
+      return shiftDateISO(range.to, -30);
+    }
+    return range.from;
+  }, [pickerTarget, range.from, range.to]);
+
+  const pickerMaxDate = useMemo(() => {
+    const today = toLocalDateISO();
+    if (pickerTarget === "from") {
+      return minDateISO(range.to, today);
+    }
+    return minDateISO(shiftDateISO(range.from, 30), today);
+  }, [pickerTarget, range.from, range.to]);
+
+  const pickerEffectiveMinDate = useMemo(() => maxDateISO(pickerMinDate, "2000-01-01"), [pickerMinDate]);
+  const pickerEffectiveMaxDate = useMemo(
+    () => (pickerMaxDate < pickerEffectiveMinDate ? pickerEffectiveMinDate : pickerMaxDate),
+    [pickerMaxDate, pickerEffectiveMinDate]
+  );
+
   const filteredDevices = useMemo(() => {
     if (filter === "online") return deviceRows.filter((item) => item.online);
     if (filter === "offline") return deviceRows.filter((item) => !item.online);
     return deviceRows;
   }, [deviceRows, filter]);
+
+  const categoryRows = useMemo(() => {
+    const aggregate = deviceRows.reduce((acc, item) => {
+      const categoryName = item.category_name || "Uncategorized";
+      acc[categoryName] = Number(acc[categoryName] || 0) + Number(item.usageLiters || 0);
+      return acc;
+    }, {});
+
+    return Object.entries(aggregate)
+      .map(([categoryName, totalLiters]) => ({ categoryName, totalLiters: Number(totalLiters || 0) }))
+      .sort((a, b) => b.totalLiters - a.totalLiters);
+  }, [deviceRows]);
 
   if (loading) {
     return (
@@ -500,6 +573,11 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       <View style={styles.card}>
+        <Text style={styles.cardTitle}>Overall Usage by Category (Today)</Text>
+        <UsageByCategoryChart items={categoryRows} />
+      </View>
+
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>Device Status</Text>
         <View style={styles.filterRow}>
           {[
@@ -544,7 +622,9 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Pick {pickerTarget === "from" ? "Start" : "End"} Date</Text>
             <Calendar
-              maxDate={toLocalDateISO()}
+              minDate={pickerEffectiveMinDate}
+              maxDate={pickerEffectiveMaxDate}
+              disableAllTouchEventsForDisabledDays
               markedDates={{
                 [range.from]: {
                   selected: true,

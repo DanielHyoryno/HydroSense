@@ -6,6 +6,7 @@ const telemetryRoutes = require("./routes/telemetry.routes");
 const usageRoutes = require("./routes/usage.routes");
 const authRoutes = require("./routes/auth.routes");
 const deviceRoutes = require("./routes/device.routes");
+const categoryRoutes = require("./routes/category.routes");
 
 const app = express();
 
@@ -22,5 +23,6 @@ app.use("/api/v1/telemetry", telemetryRoutes);
 app.use("/api/v1/usage", usageRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/devices", deviceRoutes);
+app.use("/api/v1/categories", categoryRoutes);
 
 module.exports = app;

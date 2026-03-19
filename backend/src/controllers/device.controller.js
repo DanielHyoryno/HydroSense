@@ -22,6 +22,12 @@ async function createOwnedDevice(req, res) {
     const data = await createDevice(req.user.id, parsed.data);
     return ok(res, data, "Device created", 201);
   } catch (err) {
+    if (err.message === "CATEGORY_SCHEMA_NOT_READY") {
+      return fail(res, "Category schema is not ready. Run latest DB migration.", 503, "CATEGORY_SCHEMA_NOT_READY");
+    }
+    if (err.message === "CATEGORY_NOT_FOUND") {
+      return fail(res, "Category not found", 404, "CATEGORY_NOT_FOUND");
+    }
     if (err.code === "23505") {
       return fail(res, "device_code already used", 409, "DEVICE_CODE_ALREADY_USED");
     }
@@ -50,6 +56,12 @@ async function getOwnedDevice(req, res) {
     const item = await getDeviceById(req.user.id, parsed.data.id);
     return ok(res, item, "Device retrieved");
   } catch (err) {
+    if (err.message === "CATEGORY_SCHEMA_NOT_READY") {
+      return fail(res, "Category schema is not ready. Run latest DB migration.", 503, "CATEGORY_SCHEMA_NOT_READY");
+    }
+    if (err.message === "CATEGORY_NOT_FOUND") {
+      return fail(res, "Category not found", 404, "CATEGORY_NOT_FOUND");
+    }
     if (err.message === "DEVICE_NOT_FOUND") {
       return fail(res, "Device not found", 404, "DEVICE_NOT_FOUND");
     }

@@ -1,6 +1,6 @@
 import "react-native-gesture-handler";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Dimensions, Easing, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, Easing, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -14,6 +14,7 @@ import DeviceDashboardScreen from "./src/screens/DeviceDashboard/DeviceDashboard
 import DeviceEditScreen from "./src/screens/DeviceEdit/DeviceEditScreen";
 import UsageHistoryScreen from "./src/screens/UsageHistory/UsageHistoryScreen";
 import UsageLimitsScreen from "./src/screens/UsageLimits/UsageLimitsScreen";
+import ManageCategoryScreen from "./src/screens/ManageCategory/ManageCategoryScreen";
 import BLEScanScreen from "./src/screens/BLEScan/BLEScanScreen";
 import HomeScreen from "./src/screens/Home/HomeScreen";
 import ProfileScreen from "./src/screens/Profile/ProfileScreen";
@@ -223,7 +224,15 @@ function RootNavigator() {
   }
 
   function MainTabs() {
-    const isCompactViewport = Dimensions.get("window").width <= 520;
+    const { width: viewportWidth } = useWindowDimensions();
+    const isWeb = Platform.OS === "web";
+    const isCompactViewport = viewportWidth <= 520;
+    const isDesktopViewport = viewportWidth >= 980;
+
+    const tabBarHorizontalInset = isCompactViewport ? 10 : 14;
+    const tabBarBottomInset = isCompactViewport ? 10 : 14;
+    const tabBarHeight = isCompactViewport ? 58 : TAB_BAR_HEIGHT;
+    const desktopTabBarWidth = Math.min(680, Math.max(440, Math.floor(viewportWidth * 0.62)));
 
     return (
       <Tab.Navigator
@@ -232,10 +241,12 @@ function RootNavigator() {
           tabBarShowLabel: false,
           tabBarStyle: {
             position: "absolute",
-            left: 14,
-            right: 14,
-            bottom: 14,
-            height: TAB_BAR_HEIGHT,
+            left: isDesktopViewport && isWeb ? undefined : tabBarHorizontalInset,
+            right: isDesktopViewport && isWeb ? undefined : tabBarHorizontalInset,
+            width: isDesktopViewport && isWeb ? desktopTabBarWidth : undefined,
+            alignSelf: isDesktopViewport && isWeb ? "center" : undefined,
+            bottom: tabBarBottomInset,
+            height: tabBarHeight,
             borderRadius: 18,
             borderTopWidth: 0,
             backgroundColor: "#ffffff",
@@ -248,7 +259,7 @@ function RootNavigator() {
             paddingBottom: 0,
           },
           tabBarItemStyle: {
-            height: TAB_BAR_HEIGHT,
+            height: tabBarHeight,
             justifyContent: "center",
             alignItems: "center",
             paddingTop: 0,
@@ -256,7 +267,7 @@ function RootNavigator() {
             margin: 0,
           },
           tabBarIconStyle: {
-            height: TAB_BAR_HEIGHT,
+            height: tabBarHeight,
             width: 32,
             justifyContent: "center",
             alignItems: "center",
@@ -278,8 +289,8 @@ function RootNavigator() {
               <View
                 style={[
                   styles.tabIconWrap,
-                  Platform.OS === "web" && isCompactViewport && styles.tabIconWrapWebCompact,
-                  Platform.OS !== "web" && styles.tabIconWrapNative,
+                  isWeb && isCompactViewport && styles.tabIconWrapWebCompact,
+                  !isWeb && styles.tabIconWrapNative,
                 ]}
               >
                 <Ionicons name={iconName} size={22} color={color} />
@@ -313,6 +324,7 @@ function RootNavigator() {
             component={UsageLimitsScreen}
             options={{ title: "Usage Limits" }}
           />
+          <Stack.Screen name="ManageCategory" component={ManageCategoryScreen} options={{ title: "Manage Category" }} />
         </Stack.Navigator>
       ) : (
         <Stack.Navigator>

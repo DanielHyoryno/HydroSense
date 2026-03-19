@@ -28,6 +28,18 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- DEVICE CATEGORIES
+CREATE TABLE IF NOT EXISTS device_categories (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name VARCHAR(80) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_categories_user
+  ON device_categories(user_id, created_at DESC);
+
 -- DEVICES
 CREATE TABLE IF NOT EXISTS devices (
   id BIGSERIAL PRIMARY KEY,
@@ -36,6 +48,7 @@ CREATE TABLE IF NOT EXISTS devices (
   device_name VARCHAR(100) NOT NULL,
   api_token_hash TEXT NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'offline',
+  category_id BIGINT REFERENCES device_categories(id) ON DELETE SET NULL,
   install_location VARCHAR(150),
   firmware_version VARCHAR(30),
   last_seen_at TIMESTAMP,
@@ -104,6 +117,12 @@ CREATE TABLE IF NOT EXISTS device_thresholds (
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE devices
+  ADD COLUMN IF NOT EXISTS category_id BIGINT REFERENCES device_categories(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_devices_category_id
+  ON devices(category_id);
 
 ALTER TABLE device_thresholds
   ADD COLUMN IF NOT EXISTS daily_usage_limit_l NUMERIC(12,3);

@@ -1,0 +1,105 @@
+const pool = require("../config/db");
+
+async function getCategorySupport() {
+  const q = await pool.query(
+    `SELECT
+       to_regclass('public.device_categories') IS NOT NULL AS has_categories_table,
+       to_regclass('public.device_category_map') IS NOT NULL AS has_device_category_map_table,
+       EXISTS (
+         SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'devices'
+           AND column_name = 'category_id'
+       ) AS has_device_category_column`
+  );
+
+  return {
+    hasCategoriesTable: Boolean(q.rows[0]?.has_categories_table),
+    hasDeviceCategoryMapTable: Boolean(q.rows[0]?.has_device_category_map_table),
+    hasDeviceCategoryColumn: Boolean(q.rows[0]?.has_device_category_column),
+  };
+}
+
+async function listCategories(userId) {
+  const q = await pool.query(
+    `SELECT id, user_id, name, created_at
+     FROM device_categories
+     WHERE user_id = $1
+     ORDER BY created_at DESC`,
+    [userId]
+  );
+
+  return q.rows;
+}
+
+async function createCategory(userId, payload) {
+  const q = await pool.query(
+    `INSERT INTO device_categories (user_id, name)
+     VALUES ($1, $2)
+     RETURNING id, user_id, name, created_at`,
+    [userId, payload.name.trim()]
+  );
+
+  return q.rows[0];
+}
+
+async function updateCategory(userId, categoryId, payload) {
+  const q = await pool.query(
+    `UPDATE device_categories
+     SET name = $1
+     WHERE id = $2 AND user_id = $3
+     RETURNING id, user_id, name, created_at`,
+    [payload.name.trim(), categoryId, userId]
+  );
+
+  if (q.rowCount === 0) {
+    throw new Error("CATEGORY_NOT_FOUND");
+  }
+
+  return q.rows[0];
+}
+
+async function deleteCategory(userId, categoryId) {
+  const support = await getCategorySupport();
+
+  if (support.hasDeviceCategoryColumn) {
+    await pool.query(
+      `UPDATE devices
+       SET category_id = NULL
+       WHERE user_id = $1 AND category_id = $2`,
+      [userId, categoryId]
+    );
+  }
+
+  if (support.hasDeviceCategoryMapTable) {
+    await pool.query(
+      `DELETE FROM device_category_map m
+       USING devices d
+       WHERE m.device_id = d.id
+         AND d.user_id = $1
+         AND m.category_id = $2`,
+      [userId, categoryId]
+    );
+  }
+
+  const q = await pool.query(
+    `DELETE FROM device_categories
+     WHERE id = $1 AND user_id = $2
+     RETURNING id`,
+    [categoryId, userId]
+  );
+
+  if (q.rowCount === 0) {
+    throw new Error("CATEGORY_NOT_FOUND");
+  }
+
+  return { id: q.rows[0].id };
+}
+
+module.exports = {
+  listCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+};

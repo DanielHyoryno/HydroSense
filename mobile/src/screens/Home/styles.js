@@ -155,6 +155,11 @@ const styles = StyleSheet.create({
     color: "#27435e",
     fontSize: 10,
   },
+  chartLabelWide: {
+    width: 120,
+    color: "#27435e",
+    fontSize: 10,
+  },
   chartTrack: {
     flex: 1,
     height: 10,
@@ -165,6 +170,11 @@ const styles = StyleSheet.create({
   chartFill: {
     height: "100%",
     backgroundColor: "#0f62fe",
+    borderRadius: 99,
+  },
+  chartFillCategory: {
+    height: "100%",
+    backgroundColor: "#1f7a3d",
     borderRadius: 99,
   },
   chartValue: {

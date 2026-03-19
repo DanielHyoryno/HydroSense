@@ -3,6 +3,7 @@ const { z } = require("zod");
 const createDeviceSchema = z.object({
   device_code: z.string().min(3).max(50),
   device_name: z.string().min(2).max(100),
+  category_id: z.coerce.number().int().positive().nullable().optional(),
   install_location: z.string().max(150).optional(),
   firmware_version: z.string().max(30).optional(),
 });
@@ -10,6 +11,7 @@ const createDeviceSchema = z.object({
 const updateDeviceSchema = z
   .object({
     device_name: z.string().min(2).max(100).optional(),
+    category_id: z.coerce.number().int().positive().nullable().optional(),
     install_location: z.string().max(150).nullable().optional(),
     firmware_version: z.string().max(30).nullable().optional(),
   })

@@ -55,10 +55,35 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
   },
+  categoryBox: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#dbe6f5",
+    padding: 14,
+    marginBottom: 10,
+  },
   createTitle: {
     fontWeight: "700",
     color: "#1d3551",
     marginBottom: 10,
+  },
+  categoryHelpText: {
+    color: "#4f6982",
+    marginBottom: 10,
+    fontSize: 12,
+  },
+  manageCategoryButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#0f62fe",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  manageCategoryButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 13,
   },
   input: {
     borderWidth: 1,
@@ -69,6 +94,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 10,
+  },
+  categoryLabel: {
+    color: "#35506d",
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  categoryChipRow: {
+    gap: 8,
+    paddingBottom: 8,
+  },
+  categoryChip: {
+    borderWidth: 1,
+    borderColor: "#dbe6f5",
+    backgroundColor: "#fff",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  categoryChipActive: {
+    backgroundColor: "#edf4ff",
+    borderColor: "#0f62fe",
+  },
+  categoryChipText: {
+    color: "#35506d",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  categoryChipTextActive: {
+    color: "#0f62fe",
   },
   primaryButton: {
     backgroundColor: "#0f62fe",

@@ -60,6 +60,46 @@ export async function listDevicesApi(token) {
   });
 }
 
+export async function listCategoriesApi(token) {
+  return request("/categories", {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+export async function createCategoryApi(token, body) {
+  return request("/categories", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateCategoryApi(token, categoryId, body) {
+  return request(`/categories/${categoryId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteCategoryApi(token, categoryId) {
+  return request(`/categories/${categoryId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
 export async function createDeviceApi(token, body) {
   return request("/devices", {
     method: "POST",
