@@ -1,3 +1,5 @@
+import FailureNotice from "../../components/FailureNotice";
+import { t, useLocale } from "../../services/i18n";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useAuth } from "../../context/AuthContext";
@@ -5,11 +7,14 @@ import { listCategoriesApi, updateDeviceApi } from "../../services/api";
 import styles from "./styles";
 
 export default function DeviceEditScreen({ route, navigation }) {
+    useLocale();
     const { device } = route.params;
     const { token } = useAuth();
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+    const [loadError, setLoadError] = useState("");
+    const [loadAttempt, setLoadAttempt] = useState(0);
     const [successMsg, setSuccessMsg] = useState("");
     const [categories, setCategories] = useState([]);
     const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -20,13 +25,15 @@ export default function DeviceEditScreen({ route, navigation }) {
 
     useEffect(() => {
         let mounted = true;
+        setLoadError("");
+        setCategoriesLoading(true);
 
         async function loadCategories() {
             try {
                 const data = await listCategoriesApi(token);
                 if (mounted) setCategories(Array.isArray(data) ? data : data?.items || []);
             } catch (err) {
-                if (mounted) setError(err.message || "Failed to load categories");
+                if (mounted) setLoadError(err.message || t("Failed to load categories"));
             } finally {
                 if (mounted) setCategoriesLoading(false);
             }
@@ -36,7 +43,7 @@ export default function DeviceEditScreen({ route, navigation }) {
         return () => {
             mounted = false;
         };
-    }, [token]);
+    }, [token, loadAttempt]);
 
     async function handleSave() {
         setError("");
@@ -44,7 +51,7 @@ export default function DeviceEditScreen({ route, navigation }) {
 
         const trimmedName = deviceName.trim();
         if (!trimmedName || trimmedName.length < 2) {
-            setError("Device name must be at least 2 characters");
+            setError(t("Device name must be at least 2 characters"));
             return;
         }
 
@@ -58,10 +65,10 @@ export default function DeviceEditScreen({ route, navigation }) {
             };
 
             await updateDeviceApi(token, device.id, body);
-            setSuccessMsg("Device updated successfully");
+            setSuccessMsg(t("Device updated successfully"));
             setTimeout(() => navigation.goBack(), 1200);
         } catch (err) {
-            setError(err.message || "Failed to update device");
+            setError(err.message || t("Failed to update device"));
         } finally {
             setSaving(false);
         }
@@ -69,42 +76,43 @@ export default function DeviceEditScreen({ route, navigation }) {
 
     return (
         <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-            <Text style={styles.title}>Edit Device</Text>
-            <Text style={styles.subtitle}>Update the name or installation location of your device.</Text>
+            <Text style={styles.title}>{t("Edit Device")}</Text>
+            <Text style={styles.subtitle}>{t("Update the name or installation location of your device.")}</Text>
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <FailureNotice error={loadError} onRetry={() => setLoadAttempt((n) => n + 1)} />
+            <FailureNotice error={error} popup={false} />
             {successMsg ? <Text style={styles.success}>{successMsg}</Text> : null}
 
             <View style={styles.card}>
                 <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Device Code</Text>
+                    <Text style={styles.infoLabel}>{t("Device Code")}</Text>
                     <Text style={styles.infoValue}>{device.device_code}</Text>
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Device Name</Text>
+                    <Text style={styles.label}>{t("Device Name")}</Text>
                     <TextInput
                         style={styles.input}
                         value={deviceName}
                         onChangeText={setDeviceName}
-                        placeholder="e.g. Kitchen Faucet"
+                        placeholder={t("e.g. Kitchen Faucet")}
                         placeholderTextColor="#9db0c4"
                     />
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Install Location</Text>
+                    <Text style={styles.label}>{t("Install Location")}</Text>
                     <TextInput
                         style={styles.input}
                         value={installLocation}
                         onChangeText={setInstallLocation}
-                        placeholder="e.g. Building A, 2nd Floor"
+                        placeholder={t("e.g. Building A, 2nd Floor")}
                         placeholderTextColor="#9db0c4"
                     />
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Category</Text>
+                    <Text style={styles.label}>{t("Category")}</Text>
                     {categoriesLoading ? (
                         <ActivityIndicator color="#0f62fe" size="small" />
                     ) : (
@@ -121,9 +129,7 @@ export default function DeviceEditScreen({ route, navigation }) {
                                         styles.categoryChipText,
                                         selectedCategoryId === null && styles.categoryChipTextActive,
                                     ]}
-                                >
-                                    Uncategorized
-                                </Text>
+                                >{t("Uncategorized")}</Text>
                             </Pressable>
                             {categories.map((category) => {
                                 const selected = String(selectedCategoryId) === String(category.id);
@@ -157,7 +163,7 @@ export default function DeviceEditScreen({ route, navigation }) {
                     onPress={handleSave}
                     disabled={saving}
                 >
-                    {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save Changes</Text>}
+                    {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t("Save Changes")}</Text>}
                 </Pressable>
             </View>
         </ScrollView>

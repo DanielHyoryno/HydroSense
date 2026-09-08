@@ -1,3 +1,5 @@
+import { bleErrorCopy } from "../../common/bleErrorCopy";
+import { t, useLocale } from "../../services/i18n";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, FlatList, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { API_BASE_URL } from "../../config/api";
@@ -27,7 +29,7 @@ function DeviceItem({ item, onPress, connecting }) {
     return (
         <Pressable style={styles.card} onPress={() => onPress(item)} disabled={connecting}>
             <View style={styles.cardHeader}>
-                <Text style={styles.deviceName}>{item.name || "Unknown device"}</Text>
+                <Text style={styles.deviceName}>{item.name || t("Unknown device")}</Text>
                 {connecting ? <ActivityIndicator color="#0f62fe" size="small" /> : null}
             </View>
             <Text style={styles.meta}>ID: {item.id}</Text>
@@ -37,6 +39,7 @@ function DeviceItem({ item, onPress, connecting }) {
 }
 
 export default function BLEScanScreen({ route }) {
+    useLocale();
     const { animatedStyle } = useScreenEntranceAnimation();
     const [permissionGranted, setPermissionGranted] = useState(null);
     const [devices, setDevices] = useState([]);
@@ -82,7 +85,7 @@ export default function BLEScanScreen({ route }) {
             } catch (error) {
                 if (!mounted) return;
                 setPermissionGranted(false);
-                setScanError(error.message || "Failed to request Bluetooth permissions");
+                setScanError(bleErrorCopy(error, "Failed to request Bluetooth permissions"));
             }
         }
 
@@ -111,7 +114,7 @@ export default function BLEScanScreen({ route }) {
 
     function handleStartScan() {
         if (!permissionGranted) {
-            setScanError("Bluetooth permissions are required before scanning");
+            setScanError(t("Bluetooth permissions are required before scanning"));
             return;
         }
 
@@ -135,7 +138,7 @@ export default function BLEScanScreen({ route }) {
                 });
             },
             (error) => {
-                setScanError(error.message || "Scan failed");
+                setScanError(bleErrorCopy(error, "Scan failed"));
                 setIsScanning(false);
             }
         );
@@ -157,10 +160,10 @@ export default function BLEScanScreen({ route }) {
             const code = await readCharacteristic(discoveredDevice, BLE_DEVICE_CODE_CHAR_UUID);
             setDeviceCode(code || "-");
             setStatusType("success");
-            setStatusMessage(`Connected to ${device.name}`);
+            setStatusMessage(t("connectedDevice", { name: device.name || t("Unknown device") }));
         } catch (error) {
             setStatusType("error");
-            setStatusMessage(error.message || "Failed to connect to BLE device");
+            setStatusMessage(bleErrorCopy(error, "Failed to connect to BLE device"));
             setConnectedDevice(null);
             setDeviceCode("");
         } finally {
@@ -182,10 +185,10 @@ export default function BLEScanScreen({ route }) {
             await writeCharacteristic(connectedDevice, BLE_API_TOKEN_CHAR_UUID, apiToken.trim());
 
             setStatusType("success");
-            setStatusMessage("Configuration sent successfully. Device should connect to WiFi shortly.");
+            setStatusMessage(t("Configuration sent successfully. Device should connect to WiFi shortly."));
         } catch (error) {
             setStatusType("error");
-            setStatusMessage(error.message || "Failed to send configuration");
+            setStatusMessage(bleErrorCopy(error, "Failed to send configuration"));
         } finally {
             setSendingConfig(false);
         }
@@ -200,10 +203,10 @@ export default function BLEScanScreen({ route }) {
             setConnectingId("");
             setDeviceCode("");
             setStatusType("idle");
-            setStatusMessage("Disconnected from BLE device");
+            setStatusMessage(t("Disconnected from BLE device"));
         } catch (error) {
             setStatusType("error");
-            setStatusMessage(error.message || "Failed to disconnect");
+            setStatusMessage(bleErrorCopy(error, "Failed to disconnect"));
         }
     }
 
@@ -214,21 +217,21 @@ export default function BLEScanScreen({ route }) {
             keyboardShouldPersistTaps="handled"
         >
             <View style={styles.header}>
-                <Text style={styles.title}>BLE Provisioning</Text>
-                <Text style={styles.subtitle}>Scan and configure nearby WaterMeter ESP32 devices</Text>
+                <Text style={styles.title}>{t("BLE Provisioning")}</Text>
+                <Text style={styles.subtitle}>{t("Scan and configure nearby WaterMeter ESP32 devices")}</Text>
             </View>
 
             <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Permission</Text>
+                <Text style={styles.sectionTitle}>{t("Permission")}</Text>
                 {permissionGranted === null ? <ActivityIndicator color="#0f62fe" /> : null}
-                {permissionGranted === true ? <Text style={styles.meta}>Bluetooth permission granted.</Text> : null}
+                {permissionGranted === true ? <Text style={styles.meta}>{t("Bluetooth permission granted.")}</Text> : null}
                 {permissionGranted === false ? (
-                    <Text style={styles.error}>Bluetooth permissions denied. Enable them in system settings.</Text>
+                    <Text style={styles.error}>{t("Bluetooth permissions denied. Enable them in system settings.")}</Text>
                 ) : null}
             </View>
 
             <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Scan for Devices</Text>
+                <Text style={styles.sectionTitle}>{t("Scan for Devices")}</Text>
                 <Pressable
                     style={[styles.primaryButton, isScanning && styles.primaryButtonDisabled]}
                     onPress={handleStartScan}
@@ -237,10 +240,10 @@ export default function BLEScanScreen({ route }) {
                     {isScanning ? (
                         <ActivityIndicator color="#fff" />
                     ) : (
-                        <Text style={styles.primaryText}>Scan for Devices</Text>
+                        <Text style={styles.primaryText}>{t("Scan for Devices")}</Text>
                     )}
                 </Pressable>
-                {isScanning ? <Text style={styles.meta}>Scanning... auto-stop in 15 seconds.</Text> : null}
+                {isScanning ? <Text style={styles.meta}>{t("Scanning... auto-stop in 15 seconds.")}</Text> : null}
                 {scanError ? <Text style={styles.error}>{scanError}</Text> : null}
 
                 <FlatList
@@ -250,53 +253,52 @@ export default function BLEScanScreen({ route }) {
                     renderItem={({ item }) => (
                         <DeviceItem item={item} onPress={handleConnect} connecting={connectingId === item.id} />
                     )}
-                    ListEmptyComponent={<Text style={styles.empty}>No WaterMeter BLE devices found yet.</Text>}
+                    ListEmptyComponent={<Text style={styles.empty}>{t("No WaterMeter BLE devices found yet.")}</Text>}
                 />
             </View>
 
             <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Connection</Text>
-                <Text style={styles.meta}>
-                    Status:{" "}
-                    {connectedDevice ? `Connected (${connectedDevice.name || connectedDevice.id})` : "Not connected"}
+                <Text style={styles.sectionTitle}>{t("Connection")}</Text>
+                <Text style={styles.meta}>{t("Status:")}{" "}{" "}
+                    {connectedDevice ? t("connectedDevice", { name: connectedDevice.name || connectedDevice.id }) : t("Not connected")}
                 </Text>
                 {connectedDevice ? (
                     <Pressable style={styles.secondaryButton} onPress={handleDisconnect}>
-                        <Text style={styles.secondaryText}>Disconnect</Text>
+                        <Text style={styles.secondaryText}>{t("Disconnect")}</Text>
                     </Pressable>
                 ) : null}
             </View>
 
             {connectedDevice ? (
                 <View style={styles.card}>
-                    <Text style={styles.sectionTitle}>Provisioning</Text>
-                    <Text style={styles.metaLabel}>Device code</Text>
+                    <Text style={styles.sectionTitle}>{t("Provisioning")}</Text>
+                    <Text style={styles.metaLabel}>{t("Device code")}</Text>
                     <View style={styles.readOnlyBox}>
-                        <Text style={styles.readOnlyText}>{deviceCode || "Reading..."}</Text>
+                        <Text style={styles.readOnlyText}>{deviceCode || t("Reading...")}</Text>
                     </View>
 
-                    <Text style={styles.metaLabel}>WiFi SSID</Text>
+                    <Text style={styles.metaLabel}>{t("WiFi SSID")}</Text>
                     <TextInput
                         style={styles.input}
                         value={wifiSsid}
                         onChangeText={setWifiSsid}
-                        placeholder="Enter WiFi SSID"
+                        placeholder={t("Enter WiFi SSID")}
                         placeholderTextColor="#8aa0b8"
                         autoCapitalize="none"
                     />
 
-                    <Text style={styles.metaLabel}>WiFi Password</Text>
+                    <Text style={styles.metaLabel}>{t("WiFi Password")}</Text>
                     <TextInput
                         style={styles.input}
                         value={wifiPassword}
                         onChangeText={setWifiPassword}
-                        placeholder="Enter WiFi password"
+                        placeholder={t("Enter WiFi password")}
                         placeholderTextColor="#8aa0b8"
                         secureTextEntry
                         autoCapitalize="none"
                     />
 
-                    <Text style={styles.metaLabel}>Server URL</Text>
+                    <Text style={styles.metaLabel}>{t("Server URL")}</Text>
                     <TextInput
                         style={styles.input}
                         value={serverUrl}
@@ -306,12 +308,12 @@ export default function BLEScanScreen({ route }) {
                         autoCapitalize="none"
                     />
 
-                    <Text style={styles.metaLabel}>API Token</Text>
+                    <Text style={styles.metaLabel}>{t("API Token")}</Text>
                     <TextInput
                         style={styles.input}
                         value={apiToken}
                         onChangeText={setApiToken}
-                        placeholder="Paste device API token"
+                        placeholder={t("Paste device API token")}
                         placeholderTextColor="#8aa0b8"
                         autoCapitalize="none"
                     />
@@ -324,7 +326,7 @@ export default function BLEScanScreen({ route }) {
                         {sendingConfig ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
-                            <Text style={styles.primaryText}>Send Configuration</Text>
+                            <Text style={styles.primaryText}>{t("Send Configuration")}</Text>
                         )}
                     </Pressable>
                 </View>

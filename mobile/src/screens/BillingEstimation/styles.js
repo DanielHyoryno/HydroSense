@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     },
     heroStatLabel: {
         color: "#55708a",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
     },
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     },
     label: {
         color: "#4d6480",
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: "700",
         marginBottom: 6,
     },
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
         color: "#55708a",
         marginTop: 8,
         lineHeight: 18,
-        fontSize: 12,
+        fontSize: 13,
     },
     presetRow: {
         flexDirection: "row",
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     presetButtonText: {
         color: "#35506d",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     presetButtonTextActive: {
         color: "#0f62fe",
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     },
     customDateLabel: {
         color: "#4d6480",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
     },
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     deviceMeta: {
         color: "#55708a",
         marginTop: 2,
-        fontSize: 12,
+        fontSize: 13,
     },
     summaryLine: {
         color: "#27435e",

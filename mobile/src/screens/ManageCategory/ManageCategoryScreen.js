@@ -1,3 +1,4 @@
+import FailureNotice from "../../components/FailureNotice";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, TextInput, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -27,6 +28,7 @@ export default function ManageCategoryScreen() {
     const [items, setItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [loadError, setLoadError] = useState("");
     const [newName, setNewName] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -37,6 +39,7 @@ export default function ManageCategoryScreen() {
         setError("");
         const data = await listCategoriesApi(token);
         setItems(data.items || []);
+        setLoadError("");
     }, [token]);
 
     useFocusEffect(
@@ -47,7 +50,7 @@ export default function ManageCategoryScreen() {
                 try {
                     await load();
                 } catch (err) {
-                    if (mounted) setError(err.message || messages.categories.loadFailed);
+                    if (mounted) setLoadError(err.message || messages.categories.loadFailed);
                 } finally {
                     if (mounted) setLoading(false);
                 }
@@ -188,7 +191,8 @@ export default function ManageCategoryScreen() {
 
             <View style={styles.card}>
                 <Text style={styles.cardTitle}>{messages.categories.categoryListTitle}</Text>
-                {error ? <Text style={styles.error}>{error}</Text> : null}
+                <FailureNotice error={loadError} onRetry={load} />
+                <FailureNotice error={error} popup={false} />
 
                 {editingId ? (
                     <View style={styles.editBox}>

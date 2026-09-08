@@ -1,14 +1,16 @@
+import { t, useLocale } from "../services/i18n";
 import { Modal, Pressable, Text, View } from "react-native";
 
 export default function ConfirmDialog({
     visible,
-    title = "Confirm Action",
+    title = t("Confirm Action"),
     message,
-    confirmText = "Confirm",
-    cancelText = "Cancel",
+    confirmText = t("Confirm"),
+    cancelText = t("Cancel"),
     onConfirm,
     onCancel,
 }) {
+    useLocale();
     return (
         <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
             <View

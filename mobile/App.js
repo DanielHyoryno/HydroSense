@@ -1,4 +1,5 @@
 import "react-native-gesture-handler";
+import { t, useLocale } from "./src/services/i18n";
 import { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
@@ -214,11 +215,11 @@ function StartGate({ onStart }) {
                     alignItems: "center",
                 }}
             >
-                <Text style={styles.startTitle}>Water Monitor</Text>
-                <Text style={styles.startSubtitle}>IoT Telemetry Dashboard</Text>
+                <Text style={styles.startTitle}>{t("Water Monitor")}</Text>
+                <Text style={styles.startSubtitle}>{t("IoT Telemetry Dashboard")}</Text>
             </Animated.View>
             <Animated.View style={[styles.bottomHint, hintTransform]}>
-                <Text style={styles.bottomHintText}>Tap anywhere to start</Text>
+                <Text style={styles.bottomHintText}>{t("Tap anywhere to start")}</Text>
                 <Text style={styles.bottomHintArrow}>↓</Text>
             </Animated.View>
             <StatusBar style="dark" />
@@ -238,14 +239,17 @@ function RootNavigator() {
     }
 
     function MainTabs() {
-        const { width: viewportWidth } = useWindowDimensions();
+        const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
         const insets = useSafeAreaInsets();
         const isWeb = Platform.OS === "web";
         const isCompactViewport = viewportWidth <= 520;
         const isDesktopViewport = viewportWidth >= 980;
 
         const tabBarHorizontalInset = isCompactViewport ? 14 : 18;
-        const tabBarBottomInset = isCompactViewport ? 22 : 24;
+        const defaultBottomInset = isCompactViewport ? 22 : 24;
+        const tabBarBottomInset = isWeb
+            ? defaultBottomInset
+            : Math.min(72, Math.max(insets.bottom + 12, Math.round(viewportHeight * 0.08)));
         const tabBarHeight = isCompactViewport ? 52 : TAB_BAR_HEIGHT;
         const desktopTabBarWidth = Math.min(600, Math.max(380, Math.floor(viewportWidth * 0.5)));
 
@@ -254,6 +258,7 @@ function RootNavigator() {
                 screenOptions={({ route }) => ({
                     headerShown: false,
                     tabBarShowLabel: false,
+                    tabBarAccessibilityLabel: t(route.name === "BLEScan" ? "BLE Provisioning" : route.name),
                     tabBarStyle: {
                         position: "absolute",
                         left: isDesktopViewport && isWeb ? undefined : tabBarHorizontalInset,
@@ -330,33 +335,33 @@ function RootNavigator() {
                     <Stack.Screen
                         name="DeviceDashboard"
                         component={DeviceDashboardScreen}
-                        options={{ title: "Device Dashboard" }}
+                        options={{ title: t("Device Dashboard") }}
                     />
-                    <Stack.Screen name="DeviceEdit" component={DeviceEditScreen} options={{ title: "Edit Device" }} />
+                    <Stack.Screen name="DeviceEdit" component={DeviceEditScreen} options={{ title: t("Edit Device") }} />
                     <Stack.Screen
                         name="UsageHistory"
                         component={UsageHistoryScreen}
-                        options={{ title: "Usage History" }}
+                        options={{ title: t("Usage History") }}
                     />
                     <Stack.Screen
                         name="UsageLimits"
                         component={UsageLimitsScreen}
-                        options={{ title: "Usage Limits" }}
+                        options={{ title: t("Usage Limits") }}
                     />
                     <Stack.Screen
                         name="BillingEstimation"
                         component={BillingEstimationScreen}
-                        options={{ title: "Bill Estimation" }}
+                        options={{ title: t("Bill Estimation") }}
                     />
                     <Stack.Screen
                         name="BillingSettings"
                         component={BillingSettingsScreen}
-                        options={{ title: "Manage Water Price" }}
+                        options={{ title: t("Manage Water Price") }}
                     />
                     <Stack.Screen
                         name="ManageCategory"
                         component={ManageCategoryScreen}
-                        options={{ title: "Manage Category" }}
+                        options={{ title: t("Manage Category") }}
                     />
                 </Stack.Navigator>
             ) : (
@@ -371,6 +376,7 @@ function RootNavigator() {
 }
 
 export default function App() {
+    useLocale();
     const [started, setStarted] = useState(Platform.OS === "web");
 
     return (

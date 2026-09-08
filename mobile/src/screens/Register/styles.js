@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
     },
     fieldError: {
         color: "#bd1e1e",
-        fontSize: 12,
+        fontSize: 13,
         marginTop: -7,
         marginBottom: 10,
     },

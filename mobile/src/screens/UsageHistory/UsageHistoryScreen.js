@@ -1,3 +1,5 @@
+import { getLanguageTag, formatValue, t, useLocale } from "../../services/i18n";
+import FailureNotice from "../../components/FailureNotice";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
@@ -14,7 +16,7 @@ import {
     useWindowDimensions,
     View,
 } from "react-native";
-import { Calendar } from "react-native-calendars";
+import Calendar from "../../components/LocalizedCalendar";
 import Svg, { Circle, Line, Polyline } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
@@ -62,7 +64,7 @@ function getExportDateRange(year, month) {
 
 function formatNumber(value, decimals = 2) {
     const num = Number(value || 0);
-    return num.toFixed(decimals);
+    return formatValue(num, decimals);
 }
 
 function toLocalDateISO(date = new Date()) {
@@ -152,11 +154,11 @@ function UsageBarChart({ data }) {
             <View style={styles.chartLabels}>
                 {tickIndexes.map((idx) => (
                     <Text key={`date-tick-${idx}`} style={styles.chartLabel}>
-                        {parseDateOnly(data[idx].date).toLocaleDateString()}
+                        {parseDateOnly(data[idx].date).toLocaleDateString(getLanguageTag())}
                     </Text>
                 ))}
             </View>
-            <Text style={styles.chartCaption}>Daily usage (peak {formatNumber(maxUsage, 3)} L)</Text>
+            <Text style={styles.chartCaption}>{t("Daily usage (peak")} {formatNumber(maxUsage, 3)} L)</Text>
         </View>
     );
 }
@@ -199,16 +201,17 @@ function UsageLineChart({ data, chartWidth }) {
             <View style={styles.chartLabels}>
                 {tickIndexes.map((idx) => (
                     <Text key={`dot-date-${idx}`} style={styles.chartLabel}>
-                        {parseDateOnly(data[idx].date).toLocaleDateString()}
+                        {parseDateOnly(data[idx].date).toLocaleDateString(getLanguageTag())}
                     </Text>
                 ))}
             </View>
-            <Text style={styles.chartCaption}>Line trend (peak {formatNumber(maxUsage, 3)} L)</Text>
+            <Text style={styles.chartCaption}>{t("Line trend (peak")} {formatNumber(maxUsage, 3)} L)</Text>
         </View>
     );
 }
 
 export default function UsageHistoryScreen({ route }) {
+    useLocale();
     const { device } = route.params;
     const { token } = useAuth();
     const { width: screenWidth } = useWindowDimensions();
@@ -227,7 +230,9 @@ export default function UsageHistoryScreen({ route }) {
     const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const exportInFlight = useRef(false);
     const [error, setError] = useState("");
+    const [exportError, setExportError] = useState("");
     const [items, setItems] = useState([]);
     const [usageChartType, setUsageChartType] = useState("bar");
     const [showAllDetails, setShowAllDetails] = useState(false);
@@ -244,7 +249,7 @@ export default function UsageHistoryScreen({ route }) {
     const exportYear = new Date().getFullYear();
     const exportRange = useMemo(() => getExportDateRange(exportYear, exportMonth), [exportMonth, exportYear]);
     const exportMonthLabel = useMemo(
-        () => EXPORT_MONTH_OPTIONS.find((option) => option.value === exportMonth)?.label || "All",
+        () => EXPORT_MONTH_OPTIONS.find((option) => option.value === exportMonth)?.label || t("All"),
         [exportMonth]
     );
 
@@ -317,7 +322,7 @@ export default function UsageHistoryScreen({ route }) {
                 capped.setDate(capped.getDate() + 29);
                 const cappedTo = toLocalDateISO(capped);
                 setDraftTo(cappedTo);
-                Alert.alert("Range limited", "Maximum custom range is 30 days.");
+                Alert.alert(t("Range limited"), t("Maximum custom range is 30 days."));
                 return;
             }
 
@@ -381,9 +386,9 @@ export default function UsageHistoryScreen({ route }) {
     }, [draftFrom, draftTo, maxCalendarDate]);
 
     const loadHistory = useCallback(async () => {
-        setError("");
         const data = await usageHistoryApi(token, device.device_code, range.from, range.to);
         setItems(data?.items || []);
+        setError("");
     }, [device.device_code, range.from, range.to, token]);
 
     useFocusEffect(
@@ -414,7 +419,7 @@ export default function UsageHistoryScreen({ route }) {
                 try {
                     await loadHistory();
                 } catch (err) {
-                    if (mounted) setError(err.message || "Failed to load usage history");
+                    if (mounted) setError(err.message || t("Failed to load usage history"));
                 } finally {
                     if (mounted) {
                         setLoading(false);
@@ -429,8 +434,8 @@ export default function UsageHistoryScreen({ route }) {
                 if (!mounted) return;
                 try {
                     await loadHistory();
-                } catch (_) {
-                    // silent on background refresh failures
+                } catch (err) {
+                    if (mounted) setError(err.message || t("Refresh failed"));
                 }
             }, AUTO_REFRESH_MS);
 
@@ -446,15 +451,17 @@ export default function UsageHistoryScreen({ route }) {
         try {
             await loadHistory();
         } catch (err) {
-            setError(err.message || "Refresh failed");
+            setError(err.message || t("Refresh failed"));
         } finally {
             setRefreshing(false);
         }
     }
 
     async function handleExportXlsx() {
+        if (exportInFlight.current) return;
+        exportInFlight.current = true;
         setExporting(true);
-        setError("");
+        setExportError("");
         try {
             const { arrayBuffer, contentType, contentDisposition } = await exportXlsxApi(
                 token,
@@ -482,15 +489,15 @@ export default function UsageHistoryScreen({ route }) {
 
             const result = await saveAndShareXlsx({ arrayBuffer, filename, contentType });
             if (result.shared) {
-                Alert.alert("Export Complete", "The XLSX file is ready to save or share.");
+                Alert.alert(t("reportReady"), t("The XLSX file is ready to save or share."));
             } else {
-                Alert.alert("Export Complete", `XLSX saved to: ${result.fileUri}`);
+                Alert.alert(t("reportReady"), t("reportShareUnavailable"));
             }
         } catch (err) {
-            const message = err.message || "Export failed";
-            setError(message);
-            Alert.alert("Export Failed", message);
+            const message = err.message || t("Export failed");
+            setExportError(message);
         } finally {
+            exportInFlight.current = false;
             setExporting(false);
         }
     }
@@ -560,11 +567,11 @@ export default function UsageHistoryScreen({ route }) {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
             <Text style={styles.deviceName}>{device.device_name}</Text>
-            <Text style={styles.deviceMeta}>Code: {device.device_code}</Text>
+            <Text style={styles.deviceMeta}>{t("Code:")} {device.device_code}</Text>
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <FailureNotice error={error} onRetry={onRefresh} stale={items.length > 0} />
 
-            <SectionAccordion title="Date Range" defaultExpanded>
+            <SectionAccordion title={t("Date Range")} defaultExpanded>
                 <View style={styles.cardInner}>
                     <View style={styles.rangeRow}>
                         <Pressable
@@ -575,9 +582,7 @@ export default function UsageHistoryScreen({ route }) {
                             ]}
                             onPress={() => setRangeMode("7d")}
                         >
-                            <Text style={[styles.rangeButtonText, rangeMode === "7d" && styles.rangeButtonTextActive]}>
-                                Last 7 days
-                            </Text>
+                            <Text style={[styles.rangeButtonText, rangeMode === "7d" && styles.rangeButtonTextActive]}>{t("Last 7 days")}</Text>
                         </Pressable>
                         <Pressable
                             style={({ pressed }) => [
@@ -587,9 +592,7 @@ export default function UsageHistoryScreen({ route }) {
                             ]}
                             onPress={() => setRangeMode("30d")}
                         >
-                            <Text style={[styles.rangeButtonText, rangeMode === "30d" && styles.rangeButtonTextActive]}>
-                                Last 30 days
-                            </Text>
+                            <Text style={[styles.rangeButtonText, rangeMode === "30d" && styles.rangeButtonTextActive]}>{t("Last 30 days")}</Text>
                         </Pressable>
                         <Pressable
                             style={({ pressed }) => [
@@ -601,32 +604,30 @@ export default function UsageHistoryScreen({ route }) {
                         >
                             <Text
                                 style={[styles.rangeButtonText, rangeMode === "custom" && styles.rangeButtonTextActive]}
-                            >
-                                Custom
-                            </Text>
+                            >{t("Custom")}</Text>
                         </Pressable>
                     </View>
                     {rangeMode === "custom" ? (
                         <View style={styles.customRangeWrap}>
                             <Pressable style={styles.customDateButton} onPress={openCalendarDialog}>
-                                <Text style={styles.customDateLabel}>From</Text>
+                                <Text style={styles.customDateLabel}>{t("From")}</Text>
                                 <Text style={styles.customDateValue}>
-                                    {parseDateOnly(customFrom).toLocaleDateString()}
+                                    {parseDateOnly(customFrom).toLocaleDateString(getLanguageTag())}
                                 </Text>
                             </Pressable>
                             <Pressable style={styles.customDateButton} onPress={openCalendarDialog}>
-                                <Text style={styles.customDateLabel}>To</Text>
+                                <Text style={styles.customDateLabel}>{t("To")}</Text>
                                 <Text style={styles.customDateValue}>
-                                    {parseDateOnly(customTo).toLocaleDateString()}
+                                    {parseDateOnly(customTo).toLocaleDateString(getLanguageTag())}
                                 </Text>
                             </Pressable>
                         </View>
                     ) : null}
                     <Text style={styles.meta}>
-                        {parseDateOnly(range.from).toLocaleDateString()} -{" "}
-                        {parseDateOnly(range.to).toLocaleDateString()}
+                        {parseDateOnly(range.from).toLocaleDateString(getLanguageTag())} -{" "}
+                        {parseDateOnly(range.to).toLocaleDateString(getLanguageTag())}
                     </Text>
-                    <Text style={styles.meta}>Custom range maximum: 30 days</Text>
+                    <Text style={styles.meta}>{t("Custom range maximum: 30 days")}</Text>
                 </View>
             </SectionAccordion>
 
@@ -638,7 +639,7 @@ export default function UsageHistoryScreen({ route }) {
             >
                 <View style={styles.modalBackdrop}>
                     <View style={styles.calendarDialogCard}>
-                        <Text style={styles.modalTitle}>Select Date Range</Text>
+                        <Text style={styles.modalTitle}>{t("Select Date Range")}</Text>
                         <Calendar
                             markingType="period"
                             onDayPress={onCalendarDayPress}
@@ -655,15 +656,13 @@ export default function UsageHistoryScreen({ route }) {
                                 textDisabledColor: "#b9c7d8",
                             }}
                         />
-                        <Text style={styles.calendarHint}>
-                            Tap start date, then end date (max 30 days). Tap again to start a new selection.
-                        </Text>
+                        <Text style={styles.calendarHint}>{t("Tap start date, then end date (max 30 days). Tap again to start a new selection.")}</Text>
                         <View style={styles.modalActions}>
                             <Pressable style={styles.modalSecondaryButton} onPress={closeCalendarDialog}>
-                                <Text style={styles.modalSecondaryText}>Cancel</Text>
+                                <Text style={styles.modalSecondaryText}>{t("Cancel")}</Text>
                             </Pressable>
                             <Pressable style={styles.modalPrimaryButton} onPress={applyCalendarRange}>
-                                <Text style={styles.modalPrimaryText}>Apply</Text>
+                                <Text style={styles.modalPrimaryText}>{t("Apply")}</Text>
                             </Pressable>
                         </View>
                     </View>
@@ -678,7 +677,7 @@ export default function UsageHistoryScreen({ route }) {
             >
                 <View style={styles.modalBackdrop}>
                     <View style={styles.calendarDialogCard}>
-                        <Text style={styles.modalTitle}>Select Export Month</Text>
+                        <Text style={styles.modalTitle}>{t("Select Export Month")}</Text>
                         <View style={styles.monthOptionGrid}>
                             {EXPORT_MONTH_OPTIONS.map((option) => {
                                 const selected = option.value === exportMonth;
@@ -701,7 +700,7 @@ export default function UsageHistoryScreen({ route }) {
                                                 selected && styles.monthOptionTextSelected,
                                             ]}
                                         >
-                                            {option.label}
+                                            {t(option.label)}
                                         </Text>
                                     </Pressable>
                                 );
@@ -712,36 +711,36 @@ export default function UsageHistoryScreen({ route }) {
                                 style={styles.modalSecondaryButton}
                                 onPress={() => setExportMonthDialogVisible(false)}
                             >
-                                <Text style={styles.modalSecondaryText}>Cancel</Text>
+                                <Text style={styles.modalSecondaryText}>{t("Cancel")}</Text>
                             </Pressable>
                         </View>
                     </View>
                 </View>
             </Modal>
 
-            <SectionAccordion title="Summary" defaultExpanded>
+            <SectionAccordion title={t("Summary")} defaultExpanded>
                 <View style={styles.cardInner}>
                     <View style={styles.summaryGrid}>
                         <View style={styles.summaryTile}>
-                            <Text style={styles.summaryLabel}>Total Usage</Text>
+                            <Text style={styles.summaryLabel}>{t("Total Usage")}</Text>
                             <Text style={styles.metric}>{formatNumber(totalLiters, 3)} L</Text>
                         </View>
                         <View style={styles.summaryTile}>
-                            <Text style={styles.summaryLabel}>Daily Average</Text>
-                            <Text style={styles.summaryTileValue}>{formatNumber(averageDailyUsage, 3)} L/day</Text>
+                            <Text style={styles.summaryLabel}>{t("Daily Average")}</Text>
+                            <Text style={styles.summaryTileValue}>{formatNumber(averageDailyUsage, 3)} {t("L/day")}</Text>
                         </View>
                     </View>
                     <View style={styles.peakDayCard}>
-                        <Text style={styles.summaryLabel}>Peak Day</Text>
+                        <Text style={styles.summaryLabel}>{t("Peak Day")}</Text>
                         <Text style={styles.summaryTileValue}>
-                            {peakDay ? parseDateOnly(peakDay.date).toLocaleDateString() : "-"}
+                            {peakDay ? parseDateOnly(peakDay.date).toLocaleDateString(getLanguageTag()) : "-"}
                         </Text>
                         <Text style={styles.meta}>{formatNumber(peakDay?.total_liters, 3)} L</Text>
                     </View>
                 </View>
             </SectionAccordion>
 
-            <SectionAccordion title="Daily Usage Chart" defaultExpanded>
+            <SectionAccordion title={t("Daily Usage Chart")} defaultExpanded>
                 <View style={styles.cardInner}>
                     <View style={styles.chartTypeRow}>
                         <Pressable
@@ -750,9 +749,7 @@ export default function UsageHistoryScreen({ route }) {
                         >
                             <Text
                                 style={[styles.chartTypeText, usageChartType === "bar" && styles.chartTypeTextActive]}
-                            >
-                                Bars
-                            </Text>
+                            >{t("Bars")}</Text>
                         </Pressable>
                         <Pressable
                             style={[styles.chartTypeButton, usageChartType === "line" && styles.chartTypeButtonActive]}
@@ -760,13 +757,11 @@ export default function UsageHistoryScreen({ route }) {
                         >
                             <Text
                                 style={[styles.chartTypeText, usageChartType === "line" && styles.chartTypeTextActive]}
-                            >
-                                Line
-                            </Text>
+                            >{t("Line")}</Text>
                         </Pressable>
                     </View>
                     {chartItems.length === 0 ? (
-                        <Text style={styles.meta}>No usage data in this range</Text>
+                        <Text style={styles.meta}>{t("No usage data in this range")}</Text>
                     ) : (
                         <>
                             {usageChartType === "bar" ? (
@@ -782,7 +777,7 @@ export default function UsageHistoryScreen({ route }) {
                                 {chartItems.map((row) => (
                                     <View key={`total-${row.date}`} style={styles.dailyTotalChip}>
                                         <Text style={styles.dailyTotalDate}>
-                                            {parseDateOnly(row.date).toLocaleDateString()}
+                                            {parseDateOnly(row.date).toLocaleDateString(getLanguageTag())}
                                         </Text>
                                         <Text style={styles.dailyTotalValue}>
                                             {formatNumber(row.total_liters, 3)} L
@@ -795,10 +790,10 @@ export default function UsageHistoryScreen({ route }) {
                 </View>
             </SectionAccordion>
 
-            <SectionAccordion title="Daily Details" defaultExpanded>
+            <SectionAccordion title={t("Daily Details")}>
                 <View style={styles.cardInner}>
                     {chartItems.length === 0 ? (
-                        <Text style={styles.meta}>No rows to show</Text>
+                        <Text style={styles.meta}>{t("No rows to show")}</Text>
                     ) : (
                         <>
                             <View style={styles.detailListWrap}>
@@ -811,26 +806,24 @@ export default function UsageHistoryScreen({ route }) {
                                     renderItem={({ item }) => (
                                         <View style={styles.detailCard}>
                                             <Text style={styles.detailDate}>
-                                                {parseDateOnly(item.date).toLocaleDateString()}
+                                                {parseDateOnly(item.date).toLocaleDateString(getLanguageTag())}
                                             </Text>
                                             <View style={styles.detailMetricRow}>
                                                 <View style={styles.detailMetricItem}>
-                                                    <Text style={styles.detailMetricLabel}>Total</Text>
+                                                    <Text style={styles.detailMetricLabel}>{t("Total")}</Text>
                                                     <Text style={styles.detailMetricValue}>
                                                         {formatNumber(item.total_liters, 3)} L
                                                     </Text>
                                                 </View>
                                                 <View style={styles.detailMetricItem}>
-                                                    <Text style={styles.detailMetricLabel}>Avg</Text>
+                                                    <Text style={styles.detailMetricLabel}>{t("Avg")}</Text>
                                                     <Text style={styles.detailMetricValue}>
-                                                        {formatNumber(item.avg_flow_rate_lpm, 2)} L/min
-                                                    </Text>
+                                                        {formatNumber(item.avg_flow_rate_lpm, 2)}{" "}{t("L/min")}</Text>
                                                 </View>
                                                 <View style={styles.detailMetricItem}>
-                                                    <Text style={styles.detailMetricLabel}>Peak</Text>
+                                                    <Text style={styles.detailMetricLabel}>{t("Peak")}</Text>
                                                     <Text style={styles.detailMetricValue}>
-                                                        {formatNumber(item.peak_flow_rate_lpm, 2)} L/min
-                                                    </Text>
+                                                        {formatNumber(item.peak_flow_rate_lpm, 2)}{" "}{t("L/min")}</Text>
                                                 </View>
                                             </View>
                                         </View>
@@ -843,7 +836,7 @@ export default function UsageHistoryScreen({ route }) {
                                     onPress={() => setShowAllDetails((prev) => !prev)}
                                 >
                                     <Text style={styles.viewMoreText}>
-                                        {showAllDetails ? "View Less" : `View More (${chartItems.length - 10} more)`}
+                                        {showAllDetails ? t("View Less") : t("moreRecords", { count: chartItems.length - 10 })}
                                     </Text>
                                 </Pressable>
                             ) : null}
@@ -852,23 +845,29 @@ export default function UsageHistoryScreen({ route }) {
                 </View>
             </SectionAccordion>
 
-            <SectionAccordion title="Export XLSX" defaultExpanded>
+            <SectionAccordion title={t("Export XLSX")} defaultExpanded>
                 <View style={styles.cardInner}>
+                    <FailureNotice error={exportError} onRetry={handleExportXlsx} title={t("Export failed")} />
+                    <Text style={styles.summaryTileValue}>{t("reportFor", { month: t(exportMonthLabel), year: exportYear })}</Text>
+                    <Text style={styles.exportPeriodHint}>{t("reportScope")}</Text>
                     <View style={styles.exportPeriodRow}>
                         <Pressable
                             style={({ pressed }) => [styles.exportPeriodField, pressed && styles.exportPeriodPressed]}
                             onPress={() => setExportMonthDialogVisible(true)}
+                            disabled={exporting}
+                            accessibilityRole="button"
+                            accessibilityState={{ disabled: exporting }}
                         >
-                            <Text style={styles.exportPeriodLabel}>Month</Text>
-                            <Text style={styles.exportPeriodValue}>{exportMonthLabel}</Text>
+                            <Text style={styles.exportPeriodLabel}>{t("Month")}</Text>
+                            <Text style={styles.exportPeriodValue}>{t(exportMonthLabel)}</Text>
                         </Pressable>
                         <View style={[styles.exportPeriodField, styles.exportPeriodFieldDisabled]}>
-                            <Text style={styles.exportPeriodLabelDisabled}>Year</Text>
+                            <Text style={styles.exportPeriodLabelDisabled}>{t("Year")}</Text>
                             <Text style={styles.exportPeriodValueDisabled}>{exportYear}</Text>
+                            <Text style={styles.exportPeriodLabelDisabled}>{t("yearHint")}</Text>
                         </View>
                     </View>
-                    <Text style={styles.exportPeriodHint}>
-                        Export range: {exportRange.from} to {exportRange.to}
+                    <Text style={styles.exportPeriodHint}>{t("Export range:")}{" "}{exportRange.from} {t("to")} {exportRange.to}
                     </Text>
                     <Pressable
                         style={({ pressed }) => [
@@ -877,14 +876,18 @@ export default function UsageHistoryScreen({ route }) {
                             exporting && styles.exportButtonDisabled,
                         ]}
                         accessibilityRole="button"
-                        accessibilityLabel="Export XLSX file"
+                        accessibilityLabel={t("Export XLSX file")}
+                        accessibilityState={{ busy: exporting, disabled: exporting }}
                         onPress={handleExportXlsx}
                         disabled={exporting}
                     >
                         {exporting ? (
-                            <ActivityIndicator color="#fff" />
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <ActivityIndicator color="#fff" />
+                                <Text style={styles.exportButtonText}>{t("preparingReport")}</Text>
+                            </View>
                         ) : (
-                            <Text style={styles.exportButtonText}>Export XLSX</Text>
+                            <Text style={styles.exportButtonText}>{t("Export XLSX")}</Text>
                         )}
                     </Pressable>
                 </View>

@@ -1,6 +1,6 @@
 import { PermissionsAndroid, Platform } from "react-native";
 
-const BLE_UNSUPPORTED_ERROR = "BLE is not supported on web runtime";
+import { t } from "./i18n";
 let bleManagerInstance = null;
 
 function isWebRuntime() {
@@ -185,7 +185,7 @@ export async function requestBlePermissions() {
 export function startScan(onDeviceFound, onError) {
     const manager = getBleManager();
     if (!manager) {
-        if (onError) onError(new Error(BLE_UNSUPPORTED_ERROR));
+        if (onError) onError(Object.assign(new Error(t("bleUnsupported")), { errorCode: 100 }));
         return;
     }
 
@@ -219,7 +219,7 @@ export function stopScan() {
 export async function connectAndDiscover(deviceId) {
     const manager = getBleManager();
     if (!manager) {
-        throw new Error(BLE_UNSUPPORTED_ERROR);
+        throw Object.assign(new Error(t("bleUnsupported")), { errorCode: 100 });
     }
 
     stopScan();

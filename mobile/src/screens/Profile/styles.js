@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     },
     label: {
         color: "#55708a",
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
         marginTop: 6,
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     },
     sectionHelp: {
         color: "#55708a",
-        fontSize: 12,
+        fontSize: 13,
         marginBottom: 10,
     },
     languageRow: {

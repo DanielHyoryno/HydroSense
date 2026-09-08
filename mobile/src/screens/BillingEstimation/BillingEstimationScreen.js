@@ -1,6 +1,8 @@
+import { formatValue, getLanguageTag, t, useLocale } from "../../services/i18n";
+import FailureNotice from "../../components/FailureNotice";
 import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, Text, View } from "react-native";
-import { Calendar } from "react-native-calendars";
+import Calendar from "../../components/LocalizedCalendar";
 import { useAuth } from "../../context/AuthContext";
 import { estimateBillApi, listCategoriesApi, listDevicesApi } from "../../services/api";
 import styles from "./styles";
@@ -47,7 +49,7 @@ function getRangeFromPreset(preset) {
 }
 
 function formatMoney(value) {
-    return new Intl.NumberFormat("id-ID", {
+    return new Intl.NumberFormat(getLanguageTag(), {
         style: "currency",
         currency: "IDR",
         maximumFractionDigits: 2,
@@ -77,10 +79,13 @@ function formatDeviceLabel(name, location) {
 }
 
 export default function BillingEstimationScreen({ navigation }) {
+    useLocale();
     const { token, messages } = useAuth();
     const [loading, setLoading] = useState(true);
     const [estimating, setEstimating] = useState(false);
     const [error, setError] = useState("");
+    const [loadError, setLoadError] = useState("");
+    const [loadAttempt, setLoadAttempt] = useState(0);
     const [successMsg, setSuccessMsg] = useState("");
 
     const [rangePreset, setRangePreset] = useState("month");
@@ -95,6 +100,8 @@ export default function BillingEstimationScreen({ navigation }) {
 
     useEffect(() => {
         let mounted = true;
+        setLoadError("");
+        setLoading(true);
 
         async function load() {
             try {
@@ -119,14 +126,14 @@ export default function BillingEstimationScreen({ navigation }) {
                         to: initialRange.to,
                         category_id: null,
                         device_ids: deviceItems.map((item) => item.id),
-                    }).catch(() => null);
+                    }).catch((err) => { if (err.code === "BILLING_SETTINGS_NOT_FOUND") return null; throw err; });
 
                     if (mounted && initialEstimate) {
                         setEstimate(initialEstimate);
                     }
                 }
             } catch (err) {
-                if (mounted) setError(err.message || messages.billing.loadFailed);
+                if (mounted) setLoadError(err.message || messages.billing.loadFailed);
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -136,7 +143,7 @@ export default function BillingEstimationScreen({ navigation }) {
         return () => {
             mounted = false;
         };
-    }, [token]);
+    }, [token, loadAttempt]);
 
     const filteredDevices = useMemo(() => {
         if (!selectedCategoryId) return devices;
@@ -175,11 +182,13 @@ export default function BillingEstimationScreen({ navigation }) {
         setSuccessMsg("");
         setEstimating(true);
         try {
+            const visibleDeviceIds = new Set(filteredDevices.map((device) => device.id));
+            const applicableDeviceIds = selectedDeviceIds.filter((deviceId) => visibleDeviceIds.has(deviceId));
             const result = await estimateBillApi(token, {
                 from: range.from,
                 to: range.to,
                 category_id: selectedCategoryId,
-                device_ids: selectedDeviceIds,
+                device_ids: applicableDeviceIds,
             });
             setEstimate(result);
         } catch (err) {
@@ -229,7 +238,8 @@ export default function BillingEstimationScreen({ navigation }) {
             <Text style={styles.title}>{messages.billing.pageTitle}</Text>
             <Text style={styles.subtitle}>{messages.billing.subtitle}</Text>
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <FailureNotice error={loadError} onRetry={() => setLoadAttempt((n) => n + 1)} />
+            <FailureNotice error={error} onRetry={handleApply} />
             {successMsg ? <Text style={styles.success}>{successMsg}</Text> : null}
 
             <View style={styles.heroCard}>
@@ -271,14 +281,14 @@ export default function BillingEstimationScreen({ navigation }) {
                                 <Text style={styles.customDateLabel}>{messages.billing.from}</Text>
                                 <Text style={styles.customDateValue}>{range.from}</Text>
                             </Pressable>
-                            <Pressable style={styles.customDateButton} onPress={() => openCustomPicker("to")}>
+                            <Pressable style={styles.customDateButton} onPress={() => openCustomPicker(t("to"))}>
                                 <Text style={styles.customDateLabel}>{messages.billing.to}</Text>
                                 <Text style={styles.customDateValue}>{range.to}</Text>
                             </Pressable>
                         </View>
                     ) : (
                         <Text style={styles.rangeText}>
-                            {range.from} to {range.to}
+                            {range.from} {t("to")} {range.to}
                         </Text>
                     )}
                 </View>
@@ -286,7 +296,7 @@ export default function BillingEstimationScreen({ navigation }) {
                     <View style={styles.heroStatBox}>
                         <Text style={styles.heroStatLabel}>{messages.billing.usage}</Text>
                         <Text style={styles.heroStatValue}>
-                            {Number(estimate?.summary?.total_liters || 0).toFixed(3)} L
+                            {formatValue(estimate?.summary?.total_liters, 3)} L
                         </Text>
                     </View>
                     <View style={styles.heroStatBox}>
@@ -338,7 +348,7 @@ export default function BillingEstimationScreen({ navigation }) {
                                 <Text style={styles.deviceName}>
                                     {formatDeviceLabel(device.device_name, device.install_location)}
                                 </Text>
-                                <Text style={styles.deviceMeta}>{device.category_name || "Uncategorized"}</Text>
+                                <Text style={styles.deviceMeta}>{device.category_name || t("Uncategorized")}</Text>
                             </View>
                         </Pressable>
                     );
@@ -367,7 +377,7 @@ export default function BillingEstimationScreen({ navigation }) {
                                     <Text style={styles.deviceName}>
                                         {formatDeviceLabel(item.device_name, item.install_location)}
                                     </Text>
-                                    <Text style={styles.deviceMeta}>{Number(item.total_liters || 0).toFixed(3)} L</Text>
+                                    <Text style={styles.deviceMeta}>{formatValue(item.total_liters, 3)} L</Text>
                                 </View>
                                 <Text style={styles.resultCost}>{formatMoney(item.estimated_cost)}</Text>
                             </View>

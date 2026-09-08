@@ -1,3 +1,4 @@
+import FailureNotice from "../../components/FailureNotice";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useAuth } from "../../context/AuthContext";
@@ -10,19 +11,23 @@ export default function BillingSettingsScreen() {
     const [saving, setSaving] = useState(false);
     const [pricePerLiter, setPricePerLiter] = useState("");
     const [error, setError] = useState("");
+    const [loadError, setLoadError] = useState("");
+    const [loadAttempt, setLoadAttempt] = useState(0);
     const [successMsg, setSuccessMsg] = useState("");
 
     useEffect(() => {
         let mounted = true;
+        setLoadError("");
+        setLoading(true);
 
         async function load() {
             try {
-                const settings = await billingSettingsApi(token).catch(() => null);
+                const settings = await billingSettingsApi(token).catch((err) => { if (err.code === "BILLING_SETTINGS_NOT_FOUND") return null; throw err; });
                 if (mounted && settings?.price_per_liter !== null && settings?.price_per_liter !== undefined) {
                     setPricePerLiter(String(settings.price_per_liter));
                 }
             } catch (err) {
-                if (mounted) setError(err.message || messages.billingSettings.loadFailed);
+                if (mounted) setLoadError(err.message || messages.billingSettings.loadFailed);
             } finally {
                 if (mounted) setLoading(false);
             }
@@ -32,7 +37,7 @@ export default function BillingSettingsScreen() {
         return () => {
             mounted = false;
         };
-    }, [token]);
+    }, [token, loadAttempt]);
 
     async function handleSave() {
         setError("");
@@ -66,7 +71,8 @@ export default function BillingSettingsScreen() {
             <Text style={styles.title}>{messages.billingSettings.pageTitle}</Text>
             <Text style={styles.subtitle}>{messages.billingSettings.subtitle}</Text>
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <FailureNotice error={loadError} onRetry={() => setLoadAttempt((n) => n + 1)} />
+            <FailureNotice error={error} popup={false} />
             {successMsg ? <Text style={styles.success}>{successMsg}</Text> : null}
 
             <View style={styles.card}>

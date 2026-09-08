@@ -1,3 +1,5 @@
+import { getLanguageTag, t, useLocale } from "../../services/i18n";
+import FailureNotice from "../../components/FailureNotice";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
@@ -31,6 +33,7 @@ import {
 } from "../../common/deviceDashboard/formatters";
 import { FlowBarChart, FlowLineChart, HourlyUsageLineChart } from "../../components/deviceDashboard/charts";
 import { StaggerCard, StaggerRow } from "../../components/deviceDashboard/motion";
+import { usageAlertTitle } from "../../common/usageAlertCopy";
 
 function formatAlertSummary(alert) {
     const periodKey = alert?.meta?.period_key || alert?.meta?.periodKey;
@@ -39,16 +42,17 @@ function formatAlertSummary(alert) {
     if (periodKey) {
         if (alert?.alert_type === "USAGE_LIMIT_MONTHLY") {
             const monthDate = new Date(`${periodKey}-01T00:00:00`);
-            return `${monthDate.toLocaleDateString([], { month: "long", year: "numeric" })} - ${formatNumber(consumedLiters, 3)} L`;
+            return `${monthDate.toLocaleDateString(getLanguageTag(), { month: "long", year: "numeric" })} - ${formatNumber(consumedLiters, 3)} L`;
         }
 
-        return `${new Date(`${periodKey}T00:00:00`).toLocaleDateString()} - ${formatNumber(consumedLiters, 3)} L`;
+        return `${new Date(`${periodKey}T00:00:00`).toLocaleDateString(getLanguageTag())} - ${formatNumber(consumedLiters, 3)} L`;
     }
 
-    return alert?.message || messages.dashboard.usageAlertFallback;
+    return t("Usage alert");
 }
 
 export default function DeviceDashboardScreen({ route, navigation }) {
+    useLocale();
     const { device } = route.params;
     const { token, messages } = useAuth();
     const { width: screenWidth } = useWindowDimensions();
@@ -133,8 +137,8 @@ export default function DeviceDashboardScreen({ route, navigation }) {
         if (!latest?.measured_at) return messages.dashboard.noTelemetryYet;
         const diffSec = latestAgeSec ?? 0;
         const relative = formatRelativeAge(diffSec);
-        return `${isDeviceOnline ? messages.dashboard.updated : messages.dashboard.lastSeen} ${relative} ${messages.dashboard.ago}`;
-    }, [latest?.measured_at, latestAgeSec, isDeviceOnline]);
+        return `${isDeviceOnline ? messages.dashboard.updated : messages.dashboard.lastSeen} ${relative}`;
+    }, [latest?.measured_at, latestAgeSec, isDeviceOnline, messages]);
 
     const totalTodayLiters = useMemo(
         () => dailyItems.reduce((sum, item) => sum + Number(item.volume_delta_l || 0), 0),
@@ -143,22 +147,33 @@ export default function DeviceDashboardScreen({ route, navigation }) {
 
     const avgFlowToday = useMemo(() => {
         if (dailyItems.length === 0) return 0;
-        const sum = dailyItems.reduce((acc, item) => acc + Number(item.flow_rate_lpm || 0), 0);
+        const sum = dailyItems.reduce(
+            (acc, item) => acc + Number(item.avg_flow_rate_lpm ?? item.flow_rate_lpm ?? 0),
+            0
+        );
         return sum / dailyItems.length;
     }, [dailyItems]);
 
     const highestFlow = useMemo(() => {
         if (dailyItems.length === 0) return 0;
-        return dailyItems.reduce((max, item) => Math.max(max, Number(item.flow_rate_lpm || 0)), 0);
+        return dailyItems.reduce(
+            (max, item) => Math.max(max, Number(item.peak_flow_rate_lpm ?? item.flow_rate_lpm ?? 0)),
+            0
+        );
     }, [dailyItems]);
 
     const hourlyUsageSeries = useMemo(() => {
         const buckets = Array.from({ length: 24 }, (_, hour) => ({ hour, totalLiters: 0 }));
 
         for (const item of dailyItems) {
+            const providedHour = Number(item.hour);
             const measuredAt = item.measured_at ? new Date(item.measured_at) : null;
-            if (!measuredAt || Number.isNaN(measuredAt.getTime())) continue;
-            const hour = measuredAt.getHours();
+            const hour = Number.isInteger(providedHour)
+                ? providedHour
+                : measuredAt && !Number.isNaN(measuredAt.getTime())
+                  ? measuredAt.getHours()
+                  : -1;
+            if (hour < 0 || hour > 23) continue;
             buckets[hour].totalLiters += Number(item.volume_delta_l || 0);
         }
 
@@ -178,14 +193,14 @@ export default function DeviceDashboardScreen({ route, navigation }) {
     const hasMoreTodayHistory = dailyItems.length > 10;
 
     const loadAll = useCallback(async () => {
-        setError("");
         const [latestData, dailyData, alertData, limitData] = await Promise.all([
-            latestTelemetryApi(token, device.device_code).catch(() => null),
+            latestTelemetryApi(token, device.device_code).catch((err) => { if (err.code === "NOT_FOUND") return null; throw err; }),
             dailyTelemetryApi(token, device.device_code, today),
-            usageAlertsApi(token, device.device_code, "active", 20).catch(() => ({ items: [] })),
-            usageLimitsApi(token, device.device_code).catch(() => null),
+            usageAlertsApi(token, device.device_code, "active", 20),
+            usageLimitsApi(token, device.device_code),
         ]);
 
+        setError("");
         setLatest(latestData);
         setDailyItems(dailyData?.items || []);
         setAlerts(alertData?.items || []);
@@ -213,8 +228,8 @@ export default function DeviceDashboardScreen({ route, navigation }) {
                 if (!mounted) return;
                 try {
                     await loadAll();
-                } catch (_) {
-                    // silent on auto-refresh failures
+                } catch (err) {
+                    if (mounted) setError(err.message || t("Refresh failed"));
                 }
             }, AUTO_REFRESH_MS);
 
@@ -280,7 +295,7 @@ export default function DeviceDashboardScreen({ route, navigation }) {
                 </Pressable>
             </View>
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <FailureNotice error={error} onRetry={onRefresh} stale={Boolean(latest)} />
 
             <View style={[styles.topSectionWrap, isWideLayout && styles.topSectionWrapWide]}>
                 <View style={[styles.topSectionItem, isWideLayout && styles.topSectionItemWide]}>
@@ -301,7 +316,7 @@ export default function DeviceDashboardScreen({ route, navigation }) {
                                     </Text>
                                 </View>
                             </View>
-                            <Text style={styles.mainMetric}>{formatNumber(displayFlowRate, 2)} L/min</Text>
+                            <Text style={styles.mainMetric}>{formatNumber(displayFlowRate, 2)} {t("L/min")}</Text>
                             <Text style={styles.meta}>
                                 {messages.dashboard.latestAt}:{" "}
                                 {latest?.measured_at ? formatWibDateTime(latest.measured_at) : "-"}
@@ -327,13 +342,13 @@ export default function DeviceDashboardScreen({ route, navigation }) {
                             </View>
                             <View style={[styles.card, styles.cardHalf]}>
                                 <Text style={styles.cardTitle}>{messages.dashboard.averageFlow}</Text>
-                                <Text style={styles.metric}>{formatNumber(avgFlowToday, 2)} L/min</Text>
+                                <Text style={styles.metric}>{formatNumber(avgFlowToday, 2)} {t("L/min")}</Text>
                             </View>
                         </StaggerCard>
 
                         <StaggerCard index={2} style={styles.card}>
                             <Text style={styles.cardTitle}>{messages.dashboard.peakFlowToday}</Text>
-                            <Text style={styles.metric}>{formatNumber(highestFlow, 2)} L/min</Text>
+                            <Text style={styles.metric}>{formatNumber(highestFlow, 2)} {t("L/min")}</Text>
                         </StaggerCard>
                     </SectionAccordion>
                 </View>
@@ -388,7 +403,7 @@ export default function DeviceDashboardScreen({ route, navigation }) {
                                                 <View style={styles.alertRow}>
                                                     <View style={styles.alertContent}>
                                                         <Text style={styles.alertTitle} numberOfLines={1}>
-                                                            {item.title}
+                                                            {usageAlertTitle(item)}
                                                         </Text>
                                                         <Text style={styles.alertMetaText} numberOfLines={1}>
                                                             {formatAlertSummary(item)}
@@ -416,7 +431,7 @@ export default function DeviceDashboardScreen({ route, navigation }) {
                 </View>
             </View>
 
-            <SectionAccordion title={messages.dashboard.telemetryDetails} defaultExpanded>
+            <SectionAccordion title={messages.dashboard.telemetryDetails}>
                 <StaggerCard index={5} style={styles.card}>
                     <Text style={styles.cardTitle}>{messages.dashboard.flowRateChart}</Text>
                     <View style={styles.chartTypeRow}>
@@ -467,6 +482,11 @@ export default function DeviceDashboardScreen({ route, navigation }) {
                         <Text style={styles.meta}>{messages.dashboard.noTelemetryToday}</Text>
                     ) : (
                         <View style={styles.todayHistoryBox}>
+                            <View style={styles.historyRow}>
+                                <Text style={styles.historyTime}>{t("hourColumn")}</Text>
+                                <Text style={styles.historyValue}>{t("averageColumn")}</Text>
+                                <Text style={styles.historyValue}>{t("usageColumn")}</Text>
+                            </View>
                             <FlatList
                                 data={visibleTodayHistoryItems}
                                 keyExtractor={(item, idx) => `${item.measured_at}-${idx}`}
@@ -477,8 +497,7 @@ export default function DeviceDashboardScreen({ route, navigation }) {
                                         <View style={styles.historyRow}>
                                             <Text style={styles.historyTime}>{formatDateLabel(item.measured_at)}</Text>
                                             <Text style={styles.historyValue}>
-                                                {formatNumber(item.flow_rate_lpm, 2)} L/min
-                                            </Text>
+                                                {formatNumber(item.flow_rate_lpm, 2)}{" "}{t("L/min")}</Text>
                                             <Text style={styles.historyValue}>
                                                 {formatNumber(item.volume_delta_l, 4)} L
                                             </Text>
@@ -494,7 +513,7 @@ export default function DeviceDashboardScreen({ route, navigation }) {
                                     <Text style={styles.todayHistoryMoreText}>
                                         {showAllTodayHistory
                                             ? messages.dashboard.viewLess
-                                            : `${messages.dashboard.viewMore} (${dailyItems.length - 10} ${messages.dashboard.moreSuffix})`}
+                                            : t("moreRecords", { count: dailyItems.length - 10 })}
                                     </Text>
                                 </Pressable>
                             ) : null}

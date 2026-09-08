@@ -1,5 +1,6 @@
+import { t, setLanguage } from "../src/services/i18n";
 import { Alert, Animated } from "react-native";
-import { act, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import UsageHistoryScreen from "../src/screens/UsageHistory/UsageHistoryScreen";
 import { useAuth } from "../src/context/AuthContext";
 import { exportXlsxApi, usageHistoryApi } from "../src/services/api";
@@ -22,8 +23,7 @@ jest.mock("../src/services/xlsx-export", () => ({
 jest.mock("@react-navigation/native", () => ({
     useFocusEffect: (callback) => {
         const React = require("react");
-        const callbackRef = React.useRef(callback);
-        React.useEffect(() => callbackRef.current(), []);
+        React.useEffect(callback, [callback]);
     },
 }));
 
@@ -42,7 +42,24 @@ jest.mock("../src/components/SectionAccordion", () => {
 });
 
 jest.mock("react-native-calendars", () => ({
-    Calendar: () => null,
+    Calendar: ({ onDayPress }) => {
+        const React = require("react");
+        const { Pressable, Text, View } = require("react-native");
+        return React.createElement(
+            View,
+            null,
+            React.createElement(
+                Pressable,
+                { testID: "calendar-start", onPress: () => onDayPress({ dateString: "2026-01-01" }) },
+                React.createElement(Text, null, "Test start date")
+            ),
+            React.createElement(
+                Pressable,
+                { testID: "calendar-over-limit", onPress: () => onDayPress({ dateString: "2026-02-15" }) },
+                React.createElement(Text, null, "Test over-limit date")
+            )
+        );
+    },
 }));
 
 const route = {
@@ -120,8 +137,8 @@ describe("UsageHistoryScreen XLSX export", () => {
                 expect.objectContaining({ arrayBuffer, filename: "DEVICE-01_2026-08.xlsx" })
             );
             expect(Alert.alert).toHaveBeenCalledWith(
-                "Export Complete",
-                "The XLSX file is ready to save or share."
+                t("reportReady"),
+                t("The XLSX file is ready to save or share.")
             );
         });
     }, 30000);
@@ -133,7 +150,57 @@ describe("UsageHistoryScreen XLSX export", () => {
         await pressExportButton();
 
         await waitFor(() => {
-            expect(Alert.alert).toHaveBeenCalledWith("Export Failed", "Unable to reach the server");
+            expect(screen.getByText("Unable to reach the server")).toBeTruthy();
+            expect(screen.getByText(t("Export failed"))).toBeTruthy();
         });
     }, 30000);
+
+    test("loads the selected 30-day history period", async () => {
+        await renderHistoryScreen();
+        usageHistoryApi.mockClear();
+
+        fireEvent.press(screen.getByText("Last 30 days"));
+
+        await waitFor(() => expect(usageHistoryApi).toHaveBeenCalled());
+        const [, , from, to] = usageHistoryApi.mock.calls.at(-1);
+        const inclusiveDays = Math.floor((new Date(to) - new Date(from)) / 86400000) + 1;
+        expect(inclusiveDays).toBe(30);
+    });
+
+    test("retrying a failed export repeats the export without reloading history", async () => {
+        exportXlsxApi.mockRejectedValueOnce(new Error("Connection lost")).mockResolvedValue({
+            arrayBuffer: new Uint8Array([80, 75, 3, 4]).buffer,
+            contentDisposition: 'attachment; filename="usage.xlsx"',
+        });
+        saveAndShareXlsx.mockResolvedValue({ shared: true });
+        await renderHistoryScreen();
+        await pressExportButton();
+        const historyCalls = usageHistoryApi.mock.calls.length;
+        fireEvent.press(screen.getByText("Try again"));
+        await waitFor(() => expect(exportXlsxApi).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(saveAndShareXlsx).toHaveBeenCalled());
+        expect(exportXlsxApi).toHaveBeenCalledTimes(2);
+        expect(usageHistoryApi).toHaveBeenCalledTimes(historyCalls);
+        expect(screen.queryByText("Connection lost")).toBeNull();
+    });
+
+    test("Indonesian labels show the export period independently of chart selection", async () => {
+        await renderHistoryScreen();
+        act(() => setLanguage("id"));
+        expect(screen.getByText("Bulan")).toBeTruthy();
+        expect(screen.getByText("Tahun berjalan saja")).toBeTruthy();
+        expect(screen.getByText("Laporan mengikuti periode ini, terpisah dari grafik.")).toBeTruthy();
+        act(() => setLanguage("en"));
+    });
+
+    test("warns and caps a custom range longer than 30 days", async () => {
+        await renderHistoryScreen();
+
+        fireEvent.press(screen.getByText("Custom"));
+        fireEvent.press(screen.getByText("From"));
+        fireEvent.press(screen.getByTestId("calendar-start"));
+        fireEvent.press(screen.getByTestId("calendar-over-limit"));
+
+        expect(Alert.alert).toHaveBeenCalledWith(t("Range limited"), t("Maximum custom range is 30 days."));
+    });
 });

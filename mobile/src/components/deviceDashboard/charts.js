@@ -1,3 +1,4 @@
+import { t, useLocale } from "../../services/i18n";
 import { Text, View } from "react-native";
 import Svg, { Circle, Line, Polyline } from "react-native-svg";
 import styles from "../../screens/DeviceDashboard/styles";
@@ -7,7 +8,10 @@ export function FlowBarChart({ data }) {
     if (!data || data.length === 0) return null;
 
     const items = data.slice(-20);
-    const maxFlow = items.reduce((max, d) => Math.max(max, Number(d.flow_rate_lpm || 0)), 0);
+    const maxFlow = items.reduce(
+        (max, d) => Math.max(max, Number(d.peak_flow_rate_lpm ?? d.flow_rate_lpm ?? 0)),
+        0
+    );
     const chartMax = maxFlow > 0 ? maxFlow * 1.15 : 1;
     const tickIndexes = [0, Math.floor((items.length - 1) / 2), items.length - 1].filter(
         (v, i, arr) => arr.indexOf(v) === i
@@ -17,7 +21,7 @@ export function FlowBarChart({ data }) {
         <View style={styles.chartContainer}>
             <View style={styles.chartBars}>
                 {items.map((item, idx) => {
-                    const val = Number(item.flow_rate_lpm || 0);
+                    const val = Number(item.peak_flow_rate_lpm ?? item.flow_rate_lpm ?? 0);
                     const pct = (val / chartMax) * 100;
                     return (
                         <View key={`${item.measured_at}-${idx}`} style={styles.chartBarCol}>
@@ -35,7 +39,7 @@ export function FlowBarChart({ data }) {
                     </Text>
                 ))}
             </View>
-            <Text style={styles.chartCaption}>Flow rate (peak {formatNumber(maxFlow, 2)} L/min)</Text>
+            <Text style={styles.chartCaption}>{t("Flow rate (peak")} {formatNumber(maxFlow, 2)} {t("L/min)")}</Text>
         </View>
     );
 }
@@ -44,7 +48,10 @@ export function FlowLineChart({ data, chartWidth }) {
     if (!data || data.length === 0) return null;
 
     const items = data.slice(-20);
-    const maxFlow = items.reduce((max, d) => Math.max(max, Number(d.flow_rate_lpm || 0)), 0);
+    const maxFlow = items.reduce(
+        (max, d) => Math.max(max, Number(d.peak_flow_rate_lpm ?? d.flow_rate_lpm ?? 0)),
+        0
+    );
     const chartMax = maxFlow > 0 ? maxFlow * 1.15 : 1;
     const chartHeight = 100;
     const width = Math.max(220, chartWidth || 300);
@@ -54,7 +61,7 @@ export function FlowLineChart({ data, chartWidth }) {
 
     const points = items
         .map((item, idx) => {
-            const val = Number(item.flow_rate_lpm || 0);
+            const val = Number(item.peak_flow_rate_lpm ?? item.flow_rate_lpm ?? 0);
             const x = items.length <= 1 ? width / 2 : (idx / (items.length - 1)) * width;
             const y = chartHeight - (val / chartMax) * chartHeight;
             return `${x},${y}`;
@@ -69,7 +76,7 @@ export function FlowLineChart({ data, chartWidth }) {
                     <Line x1="0" y1="0" x2="0" y2={chartHeight} stroke="#dbe6f5" strokeWidth="1" />
                     <Polyline fill="none" stroke="#0f62fe" strokeWidth="2.5" points={points} />
                     {items.map((item, idx) => {
-                        const val = Number(item.flow_rate_lpm || 0);
+                        const val = Number(item.peak_flow_rate_lpm ?? item.flow_rate_lpm ?? 0);
                         const x = items.length <= 1 ? width / 2 : (idx / (items.length - 1)) * width;
                         const y = chartHeight - (val / chartMax) * chartHeight;
                         return <Circle key={`linept-${item.measured_at}-${idx}`} cx={x} cy={y} r="3" fill="#0f62fe" />;
@@ -83,7 +90,7 @@ export function FlowLineChart({ data, chartWidth }) {
                     </Text>
                 ))}
             </View>
-            <Text style={styles.chartCaption}>Line trend (peak {formatNumber(maxFlow, 2)} L/min)</Text>
+            <Text style={styles.chartCaption}>{t("Line trend (peak")} {formatNumber(maxFlow, 2)} {t("L/min)")}</Text>
         </View>
     );
 }
@@ -142,11 +149,9 @@ export function HourlyUsageLineChart({ hourlySeries, chartWidth, hourlyGuide }) 
                     </Text>
                 ))}
             </View>
-            <Text style={styles.chartCaption}>Hourly usage trend (today)</Text>
+            <Text style={styles.chartCaption}>{t("Hourly usage trend (today)")}</Text>
             {hourlyGuide && hourlyGuide > 0 ? (
-                <Text style={styles.hourlyGuideText}>
-                    Guide from daily limit: {formatNumber(hourlyGuide, 3)} L/hour
-                </Text>
+                <Text style={styles.hourlyGuideText}>{t("Guide from daily limit:")}{formatNumber(hourlyGuide, 3)}{t("L/hour")}</Text>
             ) : null}
         </View>
     );

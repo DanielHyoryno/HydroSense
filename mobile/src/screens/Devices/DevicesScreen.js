@@ -1,3 +1,5 @@
+import FailureNotice from "../../components/FailureNotice";
+import { t, useLocale } from "../../services/i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
@@ -101,6 +103,7 @@ function DeviceCard({ item, onRequestDelete, messages, isEmbedded, isLast }) {
 }
 
 export default function DevicesScreen({ navigation }) {
+    useLocale();
     const { token, user, messages } = useAuth();
     const { width: screenWidth } = useWindowDimensions();
     const { animatedStyle } = useScreenEntranceAnimation();
@@ -164,9 +167,9 @@ export default function DevicesScreen({ navigation }) {
     }
 
     const loadDevices = useCallback(async () => {
-        setError("");
         const data = await listDevicesApi(token);
         setItems(data.items || []);
+        setError("");
     }, [token]);
 
     const loadCategories = useCallback(async () => {
@@ -205,8 +208,8 @@ export default function DevicesScreen({ navigation }) {
                 if (!mounted) return;
                 try {
                     await loadDevices();
-                } catch (_) {
-                    // silent on background refresh failures
+                } catch (err) {
+                    if (mounted) setError(err.message || t("Refresh failed"));
                 }
             }, AUTO_REFRESH_MS);
 
@@ -635,7 +638,7 @@ export default function DevicesScreen({ navigation }) {
                             ) : null}
                         </Animated.View>
 
-                        {error ? <Text style={styles.error}>{error}</Text> : null}
+                        <FailureNotice error={error} onRetry={onRefresh} />
                         {activeSection !== "list" && loading ? <ActivityIndicator style={styles.loading} /> : null}
                     </Animated.View>
                 }
@@ -667,7 +670,7 @@ export default function DevicesScreen({ navigation }) {
                             </Pressable>
                             <Pressable style={styles.copyTokenButton} onPress={handleCopyToken}>
                                 <Text style={styles.copyTokenButtonText}>
-                                    {messages.auth.copyToken || "Copy Token"}
+                                    {messages.auth.copyToken || t("Copy Token")}
                                 </Text>
                             </Pressable>
                             <Pressable style={styles.closeDialogButton} onPress={() => setTokenDialogOpen(false)}>

@@ -1,6 +1,7 @@
 import { exportXlsxApi, loginApi } from "../src/services/api";
 import { getAppLocale } from "../src/services/storage";
 import { getMessages } from "../src/constants/messages";
+import { t } from "../src/services/i18n";
 
 jest.mock("../src/services/storage", () => ({
     getAppLocale: jest.fn(),
@@ -92,5 +93,35 @@ describe("API service", () => {
         await jest.advanceTimersByTimeAsync(40000);
         await requestAssertion;
         expect(aborted).toBe(true);
+    });
+
+    test("localizes server failures without displaying internal backend details", async () => {
+        getAppLocale.mockResolvedValue("id");
+        global.fetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({ success: false, message: "SQL connection internal detail" }) });
+        await expect(loginApi({})).rejects.toThrow(t("serverError", {}, "id"));
+    });
+
+    test("localizes invalid credentials by error code", async () => {
+        getAppLocale.mockResolvedValue("id");
+        global.fetch.mockResolvedValue({ ok: false, status: 401, json: async () => ({ success: false, error_code: "INVALID_CREDENTIALS" }) });
+        await expect(loginApi({})).rejects.toThrow("Email atau kata sandi salah");
+    });
+
+    test("rejects unreadable success responses instead of treating them as empty data", async () => {
+        global.fetch.mockResolvedValue({ ok: true, json: async () => { throw new SyntaxError("Unexpected HTML"); } });
+        await expect(loginApi({})).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    });
+
+    test("timeout also covers downloading the response body", async () => {
+        jest.useFakeTimers();
+        global.fetch.mockImplementation(async (_, options) => ({
+            ok: true,
+            json: () => new Promise((resolve, reject) => {
+                options.signal.addEventListener("abort", () => reject(Object.assign(new Error("abort"), { name: "AbortError" })));
+            }),
+        }));
+        const assertion = expect(loginApi({})).rejects.toMatchObject({ code: "TIMEOUT" });
+        await jest.advanceTimersByTimeAsync(20000);
+        await assertion;
     });
 });

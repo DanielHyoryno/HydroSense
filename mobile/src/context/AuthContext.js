@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { clearAccessToken, getAccessToken, getAppLocale, saveAccessToken, saveAppLocale } from "../services/storage";
 import { loginApi, meApi, registerApi } from "../services/api";
 import messages, { DEFAULT_LOCALE, getMessages } from "../constants/messages";
+import { setLanguage } from "../services/i18n";
 
 const AuthContext = createContext(null);
 
@@ -16,6 +17,7 @@ export function AuthProvider({ children }) {
             try {
                 const storedLocale = await getAppLocale();
                 if (storedLocale) {
+                    setLanguage(storedLocale);
                     setLocale(storedLocale);
                 }
 
@@ -54,6 +56,7 @@ export function AuthProvider({ children }) {
 
     async function changeLocale(nextLocale) {
         await saveAppLocale(nextLocale);
+        setLanguage(nextLocale);
         setLocale(nextLocale);
     }
 

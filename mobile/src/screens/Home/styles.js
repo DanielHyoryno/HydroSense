@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     rangeMeta: {
         color: "#55708a",
         marginBottom: 10,
-        fontSize: 12,
+        fontSize: 13,
     },
     presetRow: {
         flexDirection: "row",
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     presetText: {
         color: "#35506d",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     presetTextActive: {
         color: "#0f62fe",
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     },
     customDateLabel: {
         color: "#4d6480",
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
     },
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     },
     kpiLabel: {
         color: "#55708a",
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
     },
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     },
     billingPreviewLabel: {
         color: "#55708a",
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
     },
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     chartLabel: {
         width: 120,
         color: "#27435e",
-        fontSize: 10,
+        fontSize: 13,
     },
     chartTrack: {
         flex: 1,
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
         textAlign: "right",
         color: "#27435e",
         fontWeight: "700",
-        fontSize: 10,
+        fontSize: 13,
     },
     overallChartWrap: {
         marginTop: 4,
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     overallBarLabel: {
         marginTop: 6,
         color: "#55708a",
-        fontSize: 10,
+        fontSize: 13,
         lineHeight: 12,
         textAlign: "center",
         width: "100%",
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     },
     dayLineLabel: {
         color: "#55708a",
-        fontSize: 9,
+        fontSize: 13,
     },
     filterRow: {
         flexDirection: "row",
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     filterButtonText: {
         color: "#35506d",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     filterButtonTextActive: {
         color: "#0f62fe",
@@ -358,12 +358,12 @@ const styles = StyleSheet.create({
     deviceMeta: {
         marginTop: 1,
         color: "#55708a",
-        fontSize: 12,
+        fontSize: 13,
     },
     deviceUsage: {
         color: "#16426d",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     emptyText: {
         color: "#55708a",
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     },
     modalHint: {
         color: "#4d6480",
-        fontSize: 12,
+        fontSize: 13,
         marginTop: 8,
     },
     modalActions: {

@@ -1,9 +1,11 @@
+import { t, useLocale } from "../services/i18n";
 import { useEffect, useRef } from "react";
 import { AppState, Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import { useAuth } from "../context/AuthContext";
 import { usageAlertsAllApi } from "../services/api";
 import { getNotifiedAlertIds, saveNotifiedAlertIds } from "../services/storage";
+import { usageAlertTitle, usageAlertBody } from "../common/usageAlertCopy";
 
 const POLL_INTERVAL_MS = 15000;
 const MAX_TRACKED_ALERT_IDS = 200;
@@ -23,6 +25,7 @@ function trimIds(ids) {
 }
 
 export default function AlertNotificationWatcher() {
+    useLocale();
     const { token, isAuthenticated } = useAuth();
     const notifiedIdsRef = useRef(new Set());
     const initializedRef = useRef(false);
@@ -53,7 +56,7 @@ export default function AlertNotificationWatcher() {
             }
 
             await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-                name: "Usage Alerts",
+                name: t("Usage Alerts"),
                 importance: Notifications.AndroidImportance.HIGH,
                 vibrationPattern: [0, 250, 250, 250],
                 lightColor: "#0f62fe",
@@ -97,10 +100,8 @@ export default function AlertNotificationWatcher() {
                 for (const alert of newAlerts) {
                     await Notifications.scheduleNotificationAsync({
                         content: {
-                            title: alert.title || "Usage alert",
-                            body:
-                                alert.message ||
-                                `${alert.device_name || alert.device_code || "Device"} has a new usage alert`,
+                            title: usageAlertTitle(alert),
+                            body: usageAlertBody(alert),
                             data: {
                                 alertId: alert.id,
                                 deviceCode: alert.device_code,

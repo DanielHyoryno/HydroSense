@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     },
     liveText: {
         color: "#0f62fe",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "700",
     },
     liveTextOffline: {
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
         color: "#2b4b6a",
         marginTop: 4,
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     overviewDetailButton: {
         marginTop: 12,
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     overviewDetailButtonText: {
         color: "#0f62fe",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     alertItem: {
         borderTopWidth: 1,
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     alertMetaText: {
         color: "#8f3a3a",
         marginTop: 2,
-        fontSize: 12,
+        fontSize: 13,
         lineHeight: 16,
     },
     dismissButton: {
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     dismissButtonText: {
         color: "#a61d1d",
         fontWeight: "600",
-        fontSize: 12,
+        fontSize: 13,
     },
     todayHistoryBox: {
         maxHeight: 320,
@@ -213,6 +213,9 @@ const styles = StyleSheet.create({
         width: 70,
     },
     historyValue: {
+        flex: 1,
+        marginLeft: 8,
+        textAlign: "right",
         color: "#27435e",
         fontWeight: "600",
     },
@@ -231,7 +234,7 @@ const styles = StyleSheet.create({
     todayHistoryMoreText: {
         color: "#0f62fe",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     limitButton: {
         backgroundColor: "#edf2fa",
@@ -297,11 +300,11 @@ const styles = StyleSheet.create({
     },
     chartLabel: {
         color: "#55708a",
-        fontSize: 10,
+        fontSize: 13,
     },
     chartCaption: {
         color: "#55708a",
-        fontSize: 10,
+        fontSize: 13,
         textAlign: "center",
         marginTop: 4,
     },
@@ -334,11 +337,11 @@ const styles = StyleSheet.create({
     },
     hourlyLineLabel: {
         color: "#55708a",
-        fontSize: 9,
+        fontSize: 13,
     },
     hourlyGuideText: {
         color: "#9a6700",
-        fontSize: 11,
+        fontSize: 13,
         marginTop: 2,
         textAlign: "center",
     },
@@ -362,7 +365,7 @@ const styles = StyleSheet.create({
     chartTypeText: {
         color: "#35506d",
         fontWeight: "600",
-        fontSize: 12,
+        fontSize: 13,
     },
     chartTypeTextActive: {
         color: "#0f62fe",

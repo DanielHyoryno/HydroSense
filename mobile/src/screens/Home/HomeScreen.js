@@ -1,3 +1,5 @@
+import { formatValue, getLanguageTag, t, useLocale } from "../../services/i18n";
+import FailureNotice from "../../components/FailureNotice";
 import { useCallback, useMemo, useState } from "react";
 import {
     ActivityIndicator,
@@ -14,7 +16,7 @@ import {
     View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { Calendar } from "react-native-calendars";
+import Calendar from "../../components/LocalizedCalendar";
 import Svg, { Circle, Line, Polyline } from "react-native-svg";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -38,12 +40,12 @@ function toLocalDateISO(date = new Date()) {
 }
 
 function formatNumber(value, decimals = 2) {
-    return Number(value || 0).toFixed(decimals);
+    return formatValue(value, decimals);
 }
 
 function formatDateLabel(dateKey) {
     const date = new Date(`${dateKey}T00:00:00`);
-    return date.toLocaleDateString([], { month: "short", day: "numeric" });
+    return date.toLocaleDateString(getLanguageTag(), { month: "short", day: "numeric" });
 }
 
 function formatDayOnlyLabel(dateKey) {
@@ -299,6 +301,7 @@ function HoverablePressable({ onPress, style, children, disabled, hoverStyle }) 
 }
 
 export default function HomeScreen({ navigation }) {
+    useLocale();
     const { token, messages } = useAuth();
     const { width: screenWidth } = useWindowDimensions();
     const { animatedStyle } = useScreenEntranceAnimation();
@@ -332,12 +335,12 @@ export default function HomeScreen({ navigation }) {
         const rows = await Promise.all(
             devices.map(async (device) => {
                 const [latest, usageResp, dailyResp] = await Promise.all([
-                    latestTelemetryApi(token, device.device_code).catch(() => null),
+                    latestTelemetryApi(token, device.device_code).catch((err) => { if (err.code === "NOT_FOUND") return null; throw err; }),
                     isDayPreset
                         ? Promise.resolve(null)
-                        : usageHistoryApi(token, device.device_code, range.from, range.to).catch(() => ({ items: [] })),
+                        : usageHistoryApi(token, device.device_code, range.from, range.to),
                     isDayPreset
-                        ? dailyTelemetryApi(token, device.device_code, today).catch(() => ({ items: [] }))
+                        ? dailyTelemetryApi(token, device.device_code, today)
                         : Promise.resolve(null),
                 ]);
 
@@ -391,7 +394,7 @@ export default function HomeScreen({ navigation }) {
         const ownedDeviceIds = rows.map((item) => item.id);
 
         if (ownedDeviceIds.length > 0) {
-            const settings = await billingSettingsApi(token).catch(() => null);
+            const settings = await billingSettingsApi(token).catch((err) => { if (err.code === "BILLING_SETTINGS_NOT_FOUND") return null; throw err; });
 
             if (settings?.price_per_liter !== null && settings?.price_per_liter !== undefined) {
                 const preview = await estimateBillApi(token, {
@@ -399,7 +402,7 @@ export default function HomeScreen({ navigation }) {
                     to: currentMonthRange.to,
                     category_id: null,
                     device_ids: ownedDeviceIds,
-                }).catch(() => null);
+                });
 
                 setBillingPreview(preview);
             } else {
@@ -511,7 +514,7 @@ export default function HomeScreen({ navigation }) {
         () => (overallSeries.length > 0 ? overallTotal / overallSeries.length : 0),
         [overallSeries.length, overallTotal]
     );
-    const overallAverageLabel = rangePreset === "day" ? "Average / Hour" : "Average / Day";
+    const overallAverageLabel = rangePreset === "day" ? t("Average / Hour") : t("Average / Day");
     const dayChartWidth = useMemo(() => Math.floor(screenWidth - 88), [screenWidth]);
 
     const pickerMinDate = useMemo(() => {
@@ -543,7 +546,7 @@ export default function HomeScreen({ navigation }) {
 
     const categoryRows = useMemo(() => {
         const aggregate = deviceRows.reduce((acc, item) => {
-            const categoryName = item.category_name || "Uncategorized";
+            const categoryName = item.category_name || t("Uncategorized");
             acc[categoryName] = Number(acc[categoryName] || 0) + Number(item.usageLiters || 0);
             return acc;
         }, {});
@@ -584,7 +587,7 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.subtitle}>{messages.home.subtitle}</Text>
                 </View>
 
-                {error ? <Text style={styles.error}>{error}</Text> : null}
+                <FailureNotice error={error} onRetry={onRefresh} />
 
                 <View style={styles.kpiRow}>
                     <View style={styles.kpiCard}>
@@ -649,7 +652,7 @@ export default function HomeScreen({ navigation }) {
                             </HoverablePressable>
                             <HoverablePressable
                                 style={styles.customDateButton}
-                                onPress={() => openCustomPicker("to")}
+                                onPress={() => openCustomPicker(t("to"))}
                                 hoverStyle={styles.hoverButtonHighlight}
                             >
                                 <Text style={styles.customDateLabel}>{messages.home.to}</Text>
@@ -658,7 +661,7 @@ export default function HomeScreen({ navigation }) {
                         </View>
                     ) : (
                         <Text style={styles.rangeMeta}>
-                            {range.from} to {range.to}
+                            {range.from} {t("to")} {range.to}
                         </Text>
                     )}
 
@@ -737,7 +740,7 @@ export default function HomeScreen({ navigation }) {
                                 />
                                 <View style={styles.deviceInfo}>
                                     <Text style={styles.deviceName}>{item.device_name}</Text>
-                                    <Text style={styles.deviceMeta}>Code: {item.device_code}</Text>
+                                    <Text style={styles.deviceMeta}>{t("Code:")} {item.device_code}</Text>
                                 </View>
                                 <Text style={styles.deviceUsage}>{formatNumber(item.usageLiters, 3)} L</Text>
                             </HoverablePressable>

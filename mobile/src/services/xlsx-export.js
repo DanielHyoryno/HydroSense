@@ -1,5 +1,6 @@
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { t } from "./i18n";
 
 const XLSX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -15,16 +16,24 @@ export async function saveAndShareXlsx({ arrayBuffer, filename, contentType }) {
     const safeFilename = sanitizeXlsxFilename(filename);
     const file = new File(Paths.cache, safeFilename);
 
-    file.create({ overwrite: true, intermediates: true });
-    file.write(new Uint8Array(arrayBuffer));
+    try {
+        file.create({ overwrite: true, intermediates: true });
+        file.write(new Uint8Array(arrayBuffer));
+    } catch {
+        throw new Error(t("saveFileError"));
+    }
 
     const canShare = await Sharing.isAvailableAsync();
     if (canShare) {
-        await Sharing.shareAsync(file.uri, {
-            mimeType: contentType || XLSX_MIME_TYPE,
-            dialogTitle: "Export Water Usage Data",
-            UTI: "org.openxmlformats.spreadsheetml.sheet",
-        });
+        try {
+            await Sharing.shareAsync(file.uri, {
+                mimeType: contentType || XLSX_MIME_TYPE,
+                dialogTitle: t("Export XLSX"),
+                UTI: "org.openxmlformats.spreadsheetml.sheet",
+            });
+        } catch {
+            throw new Error(t("shareFileError"));
+        }
     }
 
     return {

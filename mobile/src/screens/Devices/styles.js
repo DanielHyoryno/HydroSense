@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     },
     filterGroupLabel: {
         color: "#6a8098",
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
         marginBottom: 6,
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     filterChipText: {
         color: "#35506d",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     filterChipTextActive: {
         color: "#0f62fe",
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     categoryHelpText: {
         color: "#4f6982",
         marginBottom: 12,
-        fontSize: 12,
+        fontSize: 13,
         lineHeight: 19,
     },
     manageCategoryButton: {
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
         marginTop: -4,
         marginBottom: 12,
         color: "#bd1e1e",
-        fontSize: 12,
+        fontSize: 13,
         lineHeight: 18,
     },
     categoryLabel: {
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     categoryChipText: {
         color: "#35506d",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     categoryChipTextActive: {
         color: "#0f62fe",
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     tokenValue: {
         color: "#6f510a",
         fontFamily: "monospace",
-        fontSize: 12,
+        fontSize: 13,
     },
     copyTokenButton: {
         marginTop: 10,
@@ -437,13 +437,13 @@ const styles = StyleSheet.create({
     deviceCodePill: {
         marginTop: 4,
         color: "#55708a",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "500",
     },
     deviceMetaInline: {
         marginTop: 2,
         color: "#55708a",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "500",
     },
     deviceRowRight: {
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     statusTextCompact: {
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: "800",
         letterSpacing: 0.3,
     },
@@ -486,13 +486,13 @@ const styles = StyleSheet.create({
     },
     metaCompactLabel: {
         color: "#55708a",
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: "500",
     },
     metaCompactValue: {
         color: "#17324d",
         fontWeight: "600",
-        fontSize: 12,
+        fontSize: 13,
         flexShrink: 1,
         textAlign: "right",
     },
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     cardHintText: {
         flex: 1,
         color: "#6a8098",
-        fontSize: 11,
+        fontSize: 13,
         lineHeight: 16,
     },
     deleteButton: {
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     },
     deleteButtonText: {
         color: "#a61d1d",
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: "700",
     },
     error: {

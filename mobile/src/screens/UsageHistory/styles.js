@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     },
     summaryLabel: {
         color: "#55708a",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
     },
@@ -144,11 +144,11 @@ const styles = StyleSheet.create({
     },
     chartLabel: {
         color: "#4d6480",
-        fontSize: 10,
+        fontSize: 13,
     },
     chartCaption: {
         color: "#4d6480",
-        fontSize: 10,
+        fontSize: 13,
         textAlign: "center",
         marginTop: 4,
     },
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     },
     customDateLabel: {
         color: "#4d6480",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
     },
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     chartTypeText: {
         color: "#35506d",
         fontWeight: "600",
-        fontSize: 12,
+        fontSize: 13,
     },
     chartTypeTextActive: {
         color: "#0f62fe",
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     },
     dailyTotalDate: {
         color: "#4d6480",
-        fontSize: 11,
+        fontSize: 13,
     },
     dailyTotalValue: {
         color: "#1d3551",
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     },
     calendarHint: {
         color: "#4d6480",
-        fontSize: 12,
+        fontSize: 13,
         marginTop: 8,
     },
     webPickerWrap: {
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     monthOptionText: {
         color: "#1d3551",
         fontWeight: "600",
-        fontSize: 12,
+        fontSize: 13,
     },
     monthOptionTextSelected: {
         color: "#fff",
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     },
     headerText: {
         color: "#4d6480",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
         letterSpacing: 0.3,
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     },
     historyText: {
         color: "#1d3551",
-        fontSize: 12,
+        fontSize: 13,
     },
     historyDate: {
         flex: 1.1,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     viewMoreText: {
         color: "#0f62fe",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     detailCard: {
         borderWidth: 1,
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     },
     detailMetricLabel: {
         color: "#55708a",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
     },
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
         color: "#1d3551",
         fontWeight: "700",
         marginTop: 4,
-        fontSize: 12,
+        fontSize: 13,
     },
     exportPeriodRow: {
         flexDirection: "row",
@@ -438,13 +438,13 @@ const styles = StyleSheet.create({
     },
     exportPeriodLabel: {
         color: "#55708a",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
     },
     exportPeriodLabelDisabled: {
         color: "#8a98a8",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: "700",
         textTransform: "uppercase",
     },
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     },
     exportPeriodHint: {
         color: "#4d6480",
-        fontSize: 12,
+        fontSize: 13,
         marginTop: 8,
     },
     exportButton: {

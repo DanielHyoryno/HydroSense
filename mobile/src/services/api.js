@@ -1,6 +1,7 @@
 import { API_BASE_URL } from "../config/api";
 import { getMessages } from "../constants/messages";
 import { getAppLocale } from "./storage";
+import { t } from "./i18n";
 
 async function getActiveMessages() {
     const locale = await getAppLocale();
@@ -10,66 +11,90 @@ async function getActiveMessages() {
 const REQUEST_TIMEOUT_MS = 20000;
 const EXPORT_REQUEST_TIMEOUT_MS = 60000;
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS, read = (response) => response) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-        return await fetch(url, {
+        const response = await fetch(url, {
             ...options,
             signal: controller.signal,
         });
+        return await read(response);
     } catch (err) {
+        if (err.appError) throw err;
         const messages = await getActiveMessages();
 
         if (err.name === "AbortError") {
-            throw new Error(messages.auth.requestTimedOut);
+            throw Object.assign(new Error(messages.auth.requestTimedOut), { code: "TIMEOUT" });
         }
 
-        throw new Error(messages.auth.unableToReachServer);
+        throw Object.assign(new Error(messages.auth.unableToReachServer), { code: "NETWORK_ERROR" });
     } finally {
         clearTimeout(timeoutId);
     }
 }
 
-async function request(path, options = {}) {
-    const messages = await getActiveMessages();
-    const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, options);
-    const payload = await response.json().catch(() => ({}));
-
-    if (!response.ok || payload.success === false) {
-        throw new Error(payload.message || messages.auth.requestFailed);
+async function responseError(response, payload = {}) {
+    const locale = (await getAppLocale()) || "en";
+    const messages = getMessages(locale);
+    const code = payload.error_code;
+    const known = {
+        EMAIL_ALREADY_USED: messages.auth.emailAlreadyUsed,
+        DEVICE_CODE_ALREADY_USED: messages.devices.duplicateDeviceCodeError,
+        CATEGORY_ALREADY_EXISTS: messages.categories.duplicateName,
+        INVALID_CREDENTIALS: t("invalidCredentials", {}, locale),
+        BILLING_SETTINGS_NOT_FOUND: t("priceNotSet", {}, locale),
+        VALIDATION_ERROR: t("invalidInput", {}, locale),
+    };
+    let message = known[code];
+    if (!message && payload.message === "Invalid email or password") message = t("invalidCredentials", {}, locale);
+    if (!message) {
+        const key = response.status >= 500 ? "serverError" : response.status === 401 ? "sessionError"
+            : response.status === 403 ? "forbiddenError" : response.status === 404 ? "notFoundError"
+              : response.status === 429 ? "rateLimitError" : "requestError";
+        message = t(key, {}, locale);
     }
+    return Object.assign(new Error(message), { code: code || "HTTP_ERROR", status: response.status, appError: true });
+}
 
-    return payload.data;
+async function readJson(response) {
+    try { return await response.json(); }
+    catch (err) {
+        if (err.name === "AbortError") throw err;
+        if (!response.ok) return {};
+        const locale = (await getAppLocale()) || "en";
+        throw Object.assign(new Error(t("invalidResponse", {}, locale)), { code: "INVALID_RESPONSE", appError: true });
+    }
+}
+
+async function request(path, options = {}) {
+    return fetchWithTimeout(`${API_BASE_URL}${path}`, options, REQUEST_TIMEOUT_MS, async (response) => {
+        const payload = await readJson(response);
+        if (!response.ok || payload?.success === false) throw await responseError(response, payload || {});
+        if (payload?.success !== true || !Object.prototype.hasOwnProperty.call(payload, "data")) {
+            throw Object.assign(new Error(t("invalidResponse")), { code: "INVALID_RESPONSE", appError: true });
+        }
+        return payload.data;
+    });
 }
 
 async function requestRaw(path, options = {}) {
-    const messages = await getActiveMessages();
-    const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, options);
-
-    if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.message || messages.auth.requestFailed);
-    }
-
-    return response.text();
+    return fetchWithTimeout(`${API_BASE_URL}${path}`, options, REQUEST_TIMEOUT_MS, async (response) => {
+        if (!response.ok) throw await responseError(response, await readJson(response));
+        return response.text();
+    });
 }
 
 async function requestBinaryRaw(path, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
-    const messages = await getActiveMessages();
-    const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, options, timeoutMs);
-
-    if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.message || messages.auth.requestFailed);
-    }
-
-    return {
-        arrayBuffer: await response.arrayBuffer(),
-        contentType: response.headers.get("content-type") || "application/octet-stream",
-        contentDisposition: response.headers.get("content-disposition") || "",
-    };
+    return fetchWithTimeout(`${API_BASE_URL}${path}`, options, timeoutMs, async (response) => {
+        if (!response.ok) throw await responseError(response, await readJson(response));
+        return {
+            arrayBuffer: await response.arrayBuffer(),
+            contentType: response.headers.get("content-type") || "application/octet-stream",
+            contentDisposition: response.headers.get("content-disposition") || "",
+        };
+    });
 }
 
 export async function registerApi(body) {

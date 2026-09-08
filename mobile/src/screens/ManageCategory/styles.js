@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     saveText: {
         color: "#fff",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     cancelButton: {
         backgroundColor: "#eef4ff",
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     cancelText: {
         color: "#0f62fe",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     listContent: {
         paddingBottom: 4,
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     editText: {
         color: "#0f62fe",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     deleteButton: {
         backgroundColor: "#ffe3e3",
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     deleteText: {
         color: "#a61d1d",
         fontWeight: "700",
-        fontSize: 12,
+        fontSize: 13,
     },
     empty: {
         color: "#55708a",
